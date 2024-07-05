@@ -3,7 +3,7 @@
 
 This is the pool that stores cuts for every scenario in the SingleCut implementation.
 
-The cuts stored in a single cut implementation are the average cuts of all cuts generated in the backward phase.
+The cuts stored in a single cut implementation are the average cuts of all cuts generated in the second stage.
 
 The first dimension is scenarios and the second is states
 """

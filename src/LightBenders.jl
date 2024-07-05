@@ -19,7 +19,7 @@ include("risk_measures.jl")
 
 # Cut strategy implementations
 include("cut_strategies/cuts_base.jl")
-include("cut_strategies/backward_cuts.jl")
+include("cut_strategies/local_cuts.jl")
 include("cut_strategies/single_cut.jl")
 include("cut_strategies/multi_cut.jl")
 
