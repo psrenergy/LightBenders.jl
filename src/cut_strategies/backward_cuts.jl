@@ -1,22 +1,22 @@
 
 """
-    CutPoolBackwardPhase
+    LocalCutPool
 
-Cut pool to store all cuts calculated in the backward phase. In this phase we store one cut per opening.
+Cut pool to store all cuts calculated in the second stage. In this phase we store one cut per scenario.
 """
-Base.@kwdef mutable struct CutPoolBackwardPhase <: AbstractCutPool
+Base.@kwdef mutable struct LocalCutPool <: AbstractCutPool
     coefs::Vector{Vector{Float64}} = Vector{Float64}[]
     state::Vector{Vector{Float64}} = Vector{Float64}[]
     rhs::Vector{Float64} = Float64[]
     obj::Vector{Float64} = Float64[]
 end
 
-function number_of_cuts(pool::CutPoolBackwardPhase)
+function number_of_cuts(pool::LocalCutPool)
     return length(pool.rhs)
 end
 
 function store_cut!(
-    pool::CutPoolBackwardPhase, 
+    pool::LocalCutPool, 
     coefs::Vector{Float64}, 
     state::Vector{Float64}, 
     rhs::Float64, 

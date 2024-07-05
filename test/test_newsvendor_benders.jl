@@ -54,7 +54,6 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     policy_training_options = LightBenders.PolicyTrainingOptions(;
         num_stages=2,
         num_scenarios=num_scenarios,
-        num_openings=num_scenarios,
         lower_bound = -1e6,
         implementation_strategy = LightBenders.BendersSerialTraining(),
         stopping_rule = LightBenders.GapWithMinimumNumberOfIterations(;abstol = 1e-1, min_iterations = 2),

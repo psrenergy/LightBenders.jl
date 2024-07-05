@@ -7,7 +7,6 @@ struct BendersSerialTraining <: AbstractTrainingImplementation end
 Base.@kwdef mutable struct PolicyTrainingOptions
     num_stages::Int
     num_scenarios::Int
-    num_openings::Int
     lower_bound::Real = 0.0
     discount_rate::Real = 0.0
     implementation_strategy::AbstractTrainingImplementation = BendersSerialTraining()
