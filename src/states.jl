@@ -15,26 +15,8 @@ end
 
 """
 """
-function store_state_cache(state_cache_in, state_cache_out, model, t)
-    in_cache = model.ext[:state_in]::StateCache
-    out_cache = model.ext[:state_out]::StateCache
-    state_cache_in[t] = in_cache
-    state_cache_out[t] = out_cache
-    return nothing
-end
-
-"""
-"""
-function set_state_input(model, name::Symbol, variables)
-    cache = model.ext[:state_in]::StateCache
-    init_state(cache, name, variables)
-    return nothing
-end
-
-"""
-"""
-function set_state_output(model, name::Symbol, variables)
-    cache = model.ext[:state_out]::StateCache
+function set_state(model, name::Symbol, variables)
+    cache = model.ext[:state]::StateCache
     init_state(cache, name, variables)
     return nothing
 end
@@ -67,28 +49,8 @@ end
 
 """
 """
-function check_state_match(in::StateCache, out::StateCache)
-    for i in eachindex(in.state)
-        if in.state[i].name != out.state[i].name
-            error("State names do not match, [in] $(in.state[i].name) != $(out.state[i].name) [out]")
-        end
-        if in.state[i].len != out.state[i].len
-            error("State lengths do not match, [in] $(in.state[i].len) != $(out.state[i].len) [out]")
-        end
-    end
-    return nothing
-end
-
-"""
-"""
-function check_state_match(state_cache_in, state_cache_out, t)
-    check_state_match(state_cache_in[t], state_cache_out[t-1])
-end
-
-"""
-"""
 function get_state(model)
-    cache = model.ext[:state_out]::StateCache
+    cache = model.ext[:state]::StateCache
     state = Vector{Float64}(undef, length(cache.variables))
     for i in eachindex(cache.variables)
         state[i] = JuMP.value(cache.variables[i])
@@ -99,7 +61,7 @@ end
 """
 """
 function set_state(model, state)
-    cache = model.ext[:state_in]::StateCache
+    cache = model.ext[:state]::StateCache
     if length(state) == 0
         append!(state, fill(0.0, length(cache.variables)))
     end

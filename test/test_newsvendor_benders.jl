@@ -21,25 +21,23 @@ function model_builder(inputs, t)
     set_silent(model)
     sp = LightBenders.SubproblemModel(model)
     # state variable
-    @variable(sp, bought_in == 0) # Fix the initial condition
-    LightBenders.set_state_input(sp, :bought, bought_in)
-    @variable(sp, bought_out >= 0)
-    LightBenders.set_state_output(sp, :bought, bought_out)
+    @variable(sp, 0 <= bought <= inputs.max_storage)
+    LightBenders.set_state(sp, :bought, bought)
     
     if t == 1
-        @constraint(sp, bought_out <= inputs.max_storage)
-        @objective(sp, Min, bought_out * inputs.buy_price)
+        @constraint(sp, bought <= inputs.max_storage)
+        @objective(sp, Min, bought * inputs.buy_price)
     elseif t > 1
         @variable(sp, dem in MOI.Parameter(0.0))
         @variable(sp, sold >= 0)
         @variable(sp, returned >= 0)
         @constraint(sp, sold_dem_con, sold <= dem)
-        @constraint(sp, balance, sold + returned <= bought_in)
+        @constraint(sp, balance, sold + returned <= bought)
         @objective(sp, Min, - sold * inputs.sell_price - returned * inputs.return_price)
     end
     return sp    
 end
-function model_modifier(sp, inputs, t, s, l)
+function model_modifier(sp, inputs, t, s)
     if t == 1
         return nothing
     end

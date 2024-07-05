@@ -18,22 +18,17 @@ function serial_benders_simulate(;
 
     simulation_total_cost = 0.0
 
-    state = [Float64[] for t in 1:(stages+1), s in 1:scenarios]
-    state_cache_in = [StateCache() for t in 1:stages]
-    state_cache_out = [StateCache() for t in 1:(stages+1)]
-    # forward pass
+    state = Float64[]
     for t in 1:stages
         model = model_builder(inputs, t)::JuMP.Model
-        # for state validation
-        store_state_cache(state_cache_in, state_cache_out, model, t)
         if t != stages
             add_all_cuts!(model, policy.pool[t], policy.policy_training_options)
         end
         for s in 1:scenarios
             if t != 1
-                set_state(model, state[t, 1])
+                set_state(model, state)
             end
-            model_modifier(model, inputs, t, s, 0)::Nothing
+            model_modifier(model, inputs, t, s)::Nothing
             JuMP.optimize!(model)
             treat_termination_status(model, t, s)
             future_cost = get_future_cost(model, policy.policy_training_options)
@@ -42,16 +37,12 @@ function serial_benders_simulate(;
                 results_recorder(model, inputs, t, s, simulation_options.outputs_path)::Nothing
             end
             if simulation_options.state_handling == SimulationStateHandling.StatesRecalculatedInSimulation
-                state[t+1, 1] = get_state(model)
+                state = get_state(model)
             elseif simulation_options.state_handling == SimulationStateHandling.StatesFixedInPolicyResult
-                state[t+1, 1] = policy.states[t+1, 1]
+                state = policy.states
             else
                 error("State handling not implemented.")
             end
-        end
-        # state validation
-        if t > 1
-            check_state_match(state_cache_in, state_cache_out, t)
         end
     end
     if results_recorder !== nothing && simulation_options.gather_outputs
