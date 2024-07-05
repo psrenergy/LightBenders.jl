@@ -13,7 +13,7 @@ function serial_benders_simulate(;
         mkpath(simulation_options.outputs_path)
     end
 
-    stages = simulation_options.num_stages
+    stages = 2
     scenarios = simulation_options.num_scenarios
 
     simulation_total_cost = 0.0

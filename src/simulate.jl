@@ -13,7 +13,6 @@ end
 """
 """
 Base.@kwdef mutable struct SimulationOptions
-    num_stages::Int
     # TODO in the near future we should allow users to select the scenarios
     num_scenarios::Int
     gather_outputs::Bool = true
@@ -24,7 +23,6 @@ end
 
 function SimulationOptions(policy_training_options::PolicyTrainingOptions; kwargs...)
     return SimulationOptions(;
-        num_stages = policy_training_options.num_stages,
         num_scenarios = policy_training_options.num_scenarios,
         kwargs...
     )

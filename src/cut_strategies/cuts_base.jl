@@ -22,10 +22,11 @@ abstract type AbstractCutPool end
 Create a cut pool for every stage of the problem.
 """
 function initialize_cut_pool(options)
+    num_stages = 2
     if options.cut_strategy == CutStrategy.SingleCut
-        return [LightBenders.CutPoolSingleCut() for _ in 1:options.num_stages]
+        return [LightBenders.CutPoolSingleCut() for _ in 1:num_stages]
     elseif options.cut_strategy == CutStrategy.MultiCut
-        return [LightBenders.CutPoolMultiCut() for _ in 1:options.num_stages]
+        return [LightBenders.CutPoolMultiCut() for _ in 1:num_stages]
     end
     error("Not implemented.")
 end
