@@ -1,6 +1,8 @@
 function serial_benders_simulate(;
-    model_builder::Function,
-    model_modifier::Function,
+    state_variables_builder::Function,
+    first_stage_builder::Function,
+    second_stage_builder::Function,
+    second_stage_modifier::Function,
     results_recorder::Union{Function,Nothing}=nothing,
     inputs=nothing,
     policy::Policy,
@@ -19,16 +21,21 @@ function serial_benders_simulate(;
     simulation_total_cost = 0.0
 
     state = Float64[]
+
     for t in 1:stages
-        model = model_builder(inputs, t)::JuMP.Model
-        if t != stages
+        if t == 1 # first stage
+            state_variables_model = state_variables_builder(inputs)
+            model = first_stage_builder(state_variables_model, inputs)
             add_all_cuts!(model, policy.pool[t], policy.policy_training_options)
+        elseif t == 2 # second stage
+            state_variables_model = state_variables_builder(inputs)
+            model = second_stage_builder(state_variables_model, inputs)
+            set_state(model, state)
         end
         for s in 1:scenarios
-            if t != 1
-                set_state(model, state)
+            if t == 2
+                second_stage_modifier(model, inputs, s)
             end
-            model_modifier(model, inputs, t, s)::Nothing
             JuMP.optimize!(model)
             treat_termination_status(model, t, s)
             future_cost = get_future_cost(model, policy.policy_training_options)

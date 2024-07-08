@@ -31,15 +31,26 @@ end
 """
 """
 function simulate(;
-    model_builder::Function,
-    model_modifier::Function,
+    state_variables_builder::Function,
+    first_stage_builder::Function,
+    second_stage_builder::Function,
+    second_stage_modifier::Function,
     results_recorder::Union{Function, Nothing} = nothing,
     inputs = nothing,
     policy::Policy,
     simulation_options::SimulationOptions
 )::Float64
     if simulation_options.implementation_strategy isa BendersSerialSimulation
-        return serial_benders_simulate(;model_builder, model_modifier, results_recorder, inputs, policy, simulation_options)
+        return serial_benders_simulate(;
+            state_variables_builder,
+            first_stage_builder,
+            second_stage_builder,
+            second_stage_modifier,
+            results_recorder,
+            inputs,
+            policy,
+            simulation_options,
+        )
     else
         error("Algorithm not implemented.")
     end

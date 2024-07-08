@@ -16,32 +16,37 @@ Base.@kwdef mutable struct Inputs
     demand::Vector{<:Real}
 end
 
-function model_builder(inputs, t)
+function state_variables_builder(inputs)
     model = Model(HiGHS.Optimizer)
     set_silent(model)
     sp = LightBenders.SubproblemModel(model)
     # state variable
     @variable(sp, 0 <= bought <= inputs.max_storage)
     LightBenders.set_state(sp, :bought, bought)
-    
-    if t == 1
-        @constraint(sp, bought <= inputs.max_storage)
-        @objective(sp, Min, bought * inputs.buy_price)
-    elseif t > 1
-        @variable(sp, dem in MOI.Parameter(0.0))
-        @variable(sp, sold >= 0)
-        @variable(sp, returned >= 0)
-        @constraint(sp, sold_dem_con, sold <= dem)
-        @constraint(sp, balance, sold + returned <= bought)
-        @objective(sp, Min, - sold * inputs.sell_price - returned * inputs.return_price)
-    end
-    return sp    
+    return sp
 end
-function model_modifier(sp, inputs, t, s)
-    if t == 1
-        return nothing
-    end
 
+function first_stage_builder(sp, inputs)
+    bought = sp[:bought]
+
+    @constraint(sp, bought <= inputs.max_storage)
+    @objective(sp, Min, bought * inputs.buy_price)
+    return sp
+end
+
+function second_stage_builder(sp, inputs)
+    bought = sp[:bought]
+
+    @variable(sp, dem in MOI.Parameter(0.0))
+    @variable(sp, sold >= 0)
+    @variable(sp, returned >= 0)
+    @constraint(sp, sold_dem_con, sold <= dem)
+    @constraint(sp, balance, sold + returned <= bought)
+    @objective(sp, Min, - sold * inputs.sell_price - returned * inputs.return_price)
+    return sp
+end
+
+function second_stage_modifier(sp, inputs, s)
     dem = sp[:dem]
     MOI.set(sp, POI.ParameterValue(), dem, inputs.demand[s])
     return nothing
@@ -60,8 +65,10 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     )
 
     policy = LightBenders.train(;
-        model_builder,
-        model_modifier,
+        state_variables_builder,
+        first_stage_builder,
+        second_stage_builder,
+        second_stage_modifier,
         inputs = inputs,
         policy_training_options
     )
@@ -70,8 +77,10 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     @test LightBenders.upper_bound(policy) ≈ -70
 
     total_simulation_cost = LightBenders.simulate(;
-        model_builder,
-        model_modifier,
+        state_variables_builder,
+        first_stage_builder,
+        second_stage_builder,
+        second_stage_modifier,
         inputs,
         policy,
         simulation_options = LightBenders.SimulationOptions(
