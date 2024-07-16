@@ -1,6 +1,8 @@
 function serial_benders_simulate(;
-    model_builder::Function,
-    model_modifier::Function,
+    state_variables_builder::Function,
+    first_stage_builder::Function,
+    second_stage_builder::Function,
+    second_stage_modifier::Function,
     results_recorder::Union{Function,Nothing}=nothing,
     inputs=nothing,
     policy::Policy,
@@ -13,27 +15,27 @@ function serial_benders_simulate(;
         mkpath(simulation_options.outputs_path)
     end
 
-    stages = simulation_options.num_stages
+    stages = 2
     scenarios = simulation_options.num_scenarios
 
     simulation_total_cost = 0.0
 
-    state = [Float64[] for t in 1:(stages+1), s in 1:scenarios]
-    state_cache_in = [StateCache() for t in 1:stages]
-    state_cache_out = [StateCache() for t in 1:(stages+1)]
-    # forward pass
+    state = Float64[]
+
     for t in 1:stages
-        model = model_builder(inputs, t)::JuMP.Model
-        # for state validation
-        store_state_cache(state_cache_in, state_cache_out, model, t)
-        if t != stages
+        if t == 1 # first stage
+            state_variables_model = state_variables_builder(inputs)
+            model = first_stage_builder(state_variables_model, inputs)
             add_all_cuts!(model, policy.pool[t], policy.policy_training_options)
+        elseif t == 2 # second stage
+            state_variables_model = state_variables_builder(inputs)
+            model = second_stage_builder(state_variables_model, inputs)
+            set_state(model, state)
         end
         for s in 1:scenarios
-            if t != 1
-                set_state(model, state[t, 1])
+            if t == 2
+                second_stage_modifier(model, inputs, s)
             end
-            model_modifier(model, inputs, t, s, 0)::Nothing
             JuMP.optimize!(model)
             treat_termination_status(model, t, s)
             future_cost = get_future_cost(model, policy.policy_training_options)
@@ -42,16 +44,12 @@ function serial_benders_simulate(;
                 results_recorder(model, inputs, t, s, simulation_options.outputs_path)::Nothing
             end
             if simulation_options.state_handling == SimulationStateHandling.StatesRecalculatedInSimulation
-                state[t+1, 1] = get_state(model)
+                state = get_state(model)
             elseif simulation_options.state_handling == SimulationStateHandling.StatesFixedInPolicyResult
-                state[t+1, 1] = policy.states[t+1, 1]
+                state = policy.states
             else
                 error("State handling not implemented.")
             end
-        end
-        # state validation
-        if t > 1
-            check_state_match(state_cache_in, state_cache_out, t)
         end
     end
     if results_recorder !== nothing && simulation_options.gather_outputs

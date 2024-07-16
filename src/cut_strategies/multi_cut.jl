@@ -3,10 +3,10 @@
 
 This is the pool that stores cuts for every scenario in the MultiCut implementation.
 
-The cuts stored in a multicut implementation are all the cuts generated in the backward phase.
+The cuts stored in a multicut implementation are all the cuts generated in the second stage.
 """
 Base.@kwdef mutable struct CutPoolMultiCut <: AbstractCutPool
-    cuts::Vector{CutPoolBackwardPhase} = CutPoolBackwardPhase[]
+    cuts::Vector{LocalCutPool} = LocalCutPool[]
 end
 
 function number_of_cuts(pool::CutPoolMultiCut)
@@ -15,28 +15,28 @@ end
 
 function store_cut!(
     pool_multicut::CutPoolMultiCut, 
-    pool_backward::CutPoolBackwardPhase
+    local_pool::LocalCutPool
 )
-    push!(pool_multicut.cuts, pool_backward)
+    push!(pool_multicut.cuts, local_pool)
     return nothing
 end
 
 function store_cut!(
     pool::Vector{CutPoolMultiCut}, 
-    backward_cuts::CutPoolBackwardPhase,
+    local_cuts::LocalCutPool,
     state::Vector{Float64},
     options,
     t::Integer
 )
-    store_cut!(pool[t-1], backward_cuts)
+    store_cut!(pool[t-1], local_cuts)
 end
 
 function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training_options)
-    model.obj_dict[:epi_multi_cut] = Vector{JuMP.VariableRef}(undef, policy_training_options.num_openings)
+    model.obj_dict[:epi_multi_cut] = Vector{JuMP.VariableRef}(undef, policy_training_options.num_scenarios)
     alphas = model.obj_dict[:epi_multi_cut]
-    for l in 1:policy_training_options.num_openings
+    for scen in 1:policy_training_options.num_scenarios
         epi_multi_cut = JuMP.@variable(model, lower_bound = policy_training_options.lower_bound)
-        alphas[l] = epi_multi_cut
+        alphas[scen] = epi_multi_cut
     end
     return alphas
 end
@@ -47,14 +47,14 @@ function add_multi_cut_risk_neutral_cuts!(
     pool::CutPoolMultiCut, 
     policy_training_options
 )
-    for l in 1:policy_training_options.num_openings
+    for scen in 1:policy_training_options.num_scenarios
         JuMP.set_objective_coefficient(
             model, 
-            alphas[l], 
-            (1.0 - policy_training_options.discount_rate) / policy_training_options.num_openings
+            alphas[scen], 
+            (1.0 - policy_training_options.discount_rate) / policy_training_options.num_scenarios
         )
         for i in 1:length(pool.cuts)
-            add_cut(model, alphas[l], pool.cuts[i].coefs[l], pool.cuts[i].rhs[l])
+            add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen])
         end
     end
     return nothing
@@ -74,26 +74,26 @@ function add_multi_cut_cvar_cuts!(
         z_explicit_cvar, 
         discount_rate_multiplier * (policy_training_options.risk_measure.lambda)
     )
-    JuMP.@variable(model, delta_explicit_cvar[l = 1:policy_training_options.num_openings] >= 0)
-    for l in 1:policy_training_options.num_openings
+    JuMP.@variable(model, delta_explicit_cvar[scen = 1:policy_training_options.num_scenarios] >= 0)
+    for scen in 1:policy_training_options.num_scenarios
         # (1 - λ)/L * sum(alphas) 
         JuMP.set_objective_coefficient(
             model, 
-            alphas[l], 
-            discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) / policy_training_options.num_openings
+            alphas[scen], 
+            discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) / policy_training_options.num_scenarios
         )
         # λ / ((1 - CVaR_\alpha) * L) * sum(deltas)
         JuMP.set_objective_coefficient(
             model, 
-            delta_explicit_cvar[l], 
+            delta_explicit_cvar[scen], 
             discount_rate_multiplier * 
-            (policy_training_options.risk_measure.lambda) / ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_openings)
+            (policy_training_options.risk_measure.lambda) / ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_scenarios)
         )
         # Add delta constraint
-        JuMP.@constraint(model, delta_explicit_cvar[l] >= alphas[l] - z_explicit_cvar)
+        JuMP.@constraint(model, delta_explicit_cvar[scen] >= alphas[scen] - z_explicit_cvar)
         # Add all cuts
         for i in 1:length(pool.cuts)
-            add_cut(model, alphas[l], pool.cuts[i].coefs[l], pool.cuts[i].rhs[l])
+            add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen])
         end
     end
 end

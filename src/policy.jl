@@ -1,7 +1,7 @@
 Base.@kwdef mutable struct Policy
     progress::AbstractProgressLog
     pool::Vector{AbstractCutPool}
-    states::Matrix{Vector{Float64}}
+    states::Vector{Float64}
     policy_training_options::PolicyTrainingOptions
 end
 

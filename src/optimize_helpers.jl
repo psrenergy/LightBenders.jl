@@ -4,8 +4,7 @@
 A constructor of JuMP Models with an explicit place to all caches that must exist in the model.
 """
 function SubproblemModel(model::JuMP.Model)
-    model.ext[:state_in] = StateCache()
-    model.ext[:state_out] = StateCache()
+    model.ext[:state] = StateCache()
     return model
 end
 
@@ -23,17 +22,11 @@ function print_conflict_to_file(model::JuMP.Model, filename::String = "infeasibl
     return nothing
 end
 
-function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer, l::Integer = 0)
+function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer)
     if termination_status(model) != MOI.OPTIMAL
-        if l == 0
-            @info(
-                "Model of stage $t, scenario $s finished with termination status: ", termination_status(model)
-            )
-        else
-            @info(
-                "Model of stage $t, scenario $s, opening $l finished with termination status: ", termination_status(model)
-            )
-        end
+        @info(
+            "Model of stage $t, scenario $s finished with termination status: ", termination_status(model)
+        )
         if termination_status(model) == MOI.INFEASIBLE
             JuMP.compute_conflict!(model)
             print_conflict_to_file(model)

@@ -22,10 +22,11 @@ abstract type AbstractCutPool end
 Create a cut pool for every stage of the problem.
 """
 function initialize_cut_pool(options)
+    num_stages = 2
     if options.cut_strategy == CutStrategy.SingleCut
-        return [LightBenders.CutPoolSingleCut() for _ in 1:options.num_stages]
+        return [LightBenders.CutPoolSingleCut() for _ in 1:num_stages]
     elseif options.cut_strategy == CutStrategy.MultiCut
-        return [LightBenders.CutPoolMultiCut() for _ in 1:options.num_stages]
+        return [LightBenders.CutPoolMultiCut() for _ in 1:num_stages]
     end
     error("Not implemented.")
 end
@@ -46,7 +47,7 @@ end
 Return the coefficients, rhs and obj of a calculated cut.
 """
 function get_cut(model, states)
-    cache = model.ext[:state_in]::StateCache
+    cache = model.ext[:state]::StateCache
     coefs = Vector{Float64}(undef, length(cache.variables))
     obj = JuMP.objective_value(model)
     rhs = obj
@@ -65,7 +66,7 @@ Add a cut to a Model and return the constraint reference.
 """
 function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T) where T <: Real
     alpha = epigraph_variable
-    cache = model.ext[:state_out]::StateCache
+    cache = model.ext[:state]::StateCache
     cref = @constraint(model, alpha >= rhs + dot(coefs, cache.variables))
     return cref
 end

@@ -10,7 +10,7 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
     println("Benders Training")
     println(" ")
     println("Training options:")
-    println("Number of stages: ", policy_training_options.num_stages)
+    println("Number of stages: 2")
     println("Number of scenarios: ", policy_training_options.num_scenarios)
     println("Cut strategy: ", policy_training_options.cut_strategy)
     println("Risk measure: ", policy_training_options.risk_measure)

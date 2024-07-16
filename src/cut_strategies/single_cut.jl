@@ -3,7 +3,7 @@
 
 This is the pool that stores cuts for every scenario in the SingleCut implementation.
 
-The cuts stored in a single cut implementation are the average cuts of all cuts generated in the backward phase.
+The cuts stored in a single cut implementation are the average cuts of all cuts generated in the second stage.
 
 The first dimension is scenarios and the second is states
 """
@@ -34,15 +34,15 @@ end
 
 function store_cut!(
     pool::Vector{CutPoolSingleCut}, 
-    backward_cuts::CutPoolBackwardPhase,
+    local_cuts::LocalCutPool,
     state::Vector{Float64},
     options,
     t::Integer
 )
     if isa(options.risk_measure, RiskNeutral)
-        return risk_neutral_single_cut!(pool, backward_cuts, state, options, t)
+        return risk_neutral_single_cut!(pool, local_cuts, state, options, t)
     elseif isa(options.risk_measure, CVaR)
-        return cvar_single_cut!(pool, backward_cuts, state, options, t)
+        return cvar_single_cut!(pool, local_cuts, state, options, t)
     else
         error("Risk measure not implemented.")
     end
@@ -50,17 +50,17 @@ end
 
 function risk_neutral_single_cut!(
     pool::Vector{CutPoolSingleCut}, 
-    backward_cuts::CutPoolBackwardPhase, 
+    local_cuts::LocalCutPool, 
     state::Vector{Float64},
     options,
     t::Integer
 )
-    num_backwards = length(backward_cuts.obj)
-    obj = mean(backward_cuts.obj)
-    rhs = mean(backward_cuts.rhs)
-    coefs = zeros(Float64, length(backward_cuts.coefs[1]))
+    num_local_cuts = length(local_cuts.obj)
+    obj = mean(local_cuts.obj)
+    rhs = mean(local_cuts.rhs)
+    coefs = zeros(Float64, length(local_cuts.coefs[1]))
     for i in eachindex(coefs)
-        coefs[i] = sum(backward_cuts.coefs[j][i] for j in 1:num_backwards) / num_backwards
+        coefs[i] = sum(local_cuts.coefs[j][i] for j in 1:num_local_cuts) / num_local_cuts
     end
     store_cut!(pool[t-1], coefs, state, rhs, obj)
     return nothing
@@ -68,17 +68,17 @@ end
 
 function cvar_single_cut!(
     pool::Vector{CutPoolSingleCut}, 
-    backward_cuts::CutPoolBackwardPhase, 
+    local_cuts::LocalCutPool, 
     state::Vector{Float64},
     options,
     t::Int
 )
-    weights = build_cvar_weights(backward_cuts.obj, options.risk_measure.alpha, options.risk_measure.lambda)
-    obj = dot(weights, backward_cuts.obj)
-    rhs = dot(weights, backward_cuts.rhs)
-    coefs = zeros(Float64, length(backward_cuts.coefs[1]))
+    weights = build_cvar_weights(local_cuts.obj, options.risk_measure.alpha, options.risk_measure.lambda)
+    obj = dot(weights, local_cuts.obj)
+    rhs = dot(weights, local_cuts.rhs)
+    coefs = zeros(Float64, length(local_cuts.coefs[1]))
     for j in eachindex(weights)
-        coefs .+= weights[j] .* backward_cuts.coefs[j]
+        coefs .+= weights[j] .* local_cuts.coefs[j]
     end
     store_cut!(pool[t-1], coefs, state, rhs, obj)
     return nothing
