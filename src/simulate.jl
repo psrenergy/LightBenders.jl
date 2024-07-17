@@ -15,8 +15,6 @@ end
 Base.@kwdef mutable struct SimulationOptions
     # TODO in the near future we should allow users to select the scenarios
     num_scenarios::Int
-    gather_outputs::Bool = true
-    outputs_path::AbstractString = ""
     implementation_strategy::AbstractSimulationImplementation = BendersSerialSimulation()
     state_handling::SimulationStateHandling.T = SimulationStateHandling.StatesRecalculatedInSimulation
 end
