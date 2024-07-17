@@ -73,7 +73,7 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     @test LightBenders.lower_bound(policy) ≈ -70
     @test LightBenders.upper_bound(policy) ≈ -70
 
-    total_simulation_cost = LightBenders.simulate(;
+    results = LightBenders.simulate(;
         state_variables_builder,
         first_stage_builder,
         second_stage_builder,
@@ -86,7 +86,7 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
         )
     )
 
-    @test total_simulation_cost ≈ -70 atol = 1e-2
+    @test results["objective", 0] ≈ -70 atol = 1e-2
 end
 
 function newsvendor_deterministic()

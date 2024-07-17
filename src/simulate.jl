@@ -35,18 +35,16 @@ function simulate(;
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
-    results_recorder::Union{Function, Nothing} = nothing,
     inputs = nothing,
     policy::Policy,
     simulation_options::SimulationOptions
-)::Float64
+)
     if simulation_options.implementation_strategy isa BendersSerialSimulation
         return serial_benders_simulate(;
             state_variables_builder,
             first_stage_builder,
             second_stage_builder,
             second_stage_modifier,
-            results_recorder,
             inputs,
             policy,
             simulation_options,
