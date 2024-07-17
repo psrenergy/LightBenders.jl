@@ -83,7 +83,7 @@ function save_deterministic_results(
                 scenario = parse(Int, scen)
                 results[name, scenario] = JuMP.value(var[i])
             end
-        else # scenario zero when the variable is state variable
+        else # state variable results are saved in all scenarios
             if occursin("[", var_str[i])
                 name, idx, scen = split(var_str[i], ['[', ']'])
                 index = parse.(Int, split(idx, ','))
