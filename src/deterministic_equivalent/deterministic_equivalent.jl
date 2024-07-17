@@ -4,25 +4,26 @@ function deterministic_equivalent(;
     second_stage_builder::Function,
     second_stage_modifier::Function,
     inputs=nothing,
-    policy_training_options::PolicyTrainingOptions
+    num_scenarios::Int,
 )
     model = state_variables_builder(inputs)
     first_stage_builder(model, inputs)
     subproblem = state_variables_builder(inputs)
     second_stage_builder(subproblem, inputs)
-    for scen in 1:policy_training_options.num_scenarios
+    for scen in 1:num_scenarios
         second_stage_modifier(subproblem, inputs, scen)
         push_model!(
             model,
             subproblem,
             scen,
-            policy_training_options.num_scenarios,
+            num_scenarios,
         )
     end
     JuMP.optimize!(model)
     treat_termination_status(model, 0, 0)
-    # TODO - save results
-    return model
+    results = save_deterministic_results(model, num_scenarios)
+    results["objective", 0] = JuMP.objective_value(model)
+    return results
 end
 
 function copy_and_replace_variables(
