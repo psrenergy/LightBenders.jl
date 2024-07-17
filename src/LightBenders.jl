@@ -43,4 +43,7 @@ include("training_strategies/benders_serial.jl")
 # simulation implementations
 include("simulation_strategies/benders_serial.jl")
 
+# deterministic equivalent formulation
+include("deterministic_equivalent.jl")
+
 end # module LightBenders

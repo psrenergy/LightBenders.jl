@@ -4,9 +4,6 @@ using Test
 using LightBenders
 using JuMP
 using HiGHS
-using ParametricOptInterface
-
-const POI = ParametricOptInterface
 
 Base.@kwdef mutable struct Inputs
     buy_price::Real
@@ -48,7 +45,7 @@ end
 
 function second_stage_modifier(sp, inputs, s)
     dem = sp[:dem]
-    MOI.set(sp, POI.ParameterValue(), dem, inputs.demand[s])
+    JuMP.set_parameter_value(dem, inputs.demand[s])
     return nothing
 end
 
