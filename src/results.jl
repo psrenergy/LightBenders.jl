@@ -26,14 +26,12 @@ function get_expression_value(jump_array::JuMP.AffExpr)
     return JuMP.value(jump_array)
 end
 
-function get_value(jump_array)
-    if first(jump_array) isa JuMP.VariableRef
-        return get_variable_value(jump_array)
-    elseif first(jump_array) isa JuMP.AffExpr
-        return get_expression_value(jump_array)
-    else
-        error("Should not reach here. Array of type $(typeof(first(jump_array))).")
-    end
+function get_value(jump_array::Union{JuMP.VariableRef, Array{JuMP.VariableRef}})
+    return get_variable_value(jump_array)
+end
+
+function get_value(jump_array::Union{JuMP.AffExpr, Array{JuMP.AffExpr}})
+    return get_expression_value(jump_array)
 end
 
 function save_benders_results!(
@@ -46,22 +44,23 @@ function save_benders_results!(
     if t == 1
         model_dict = model.obj_dict
         for (name, obj) in model_dict
-            if obj isa JuMP.ConstraintRef || obj isa Array{<:JuMP.ConstraintRef}
+            if !(obj isa Union{JuMP.VariableRef, Array{JuMP.VariableRef}, JuMP.AffExpr, Array{JuMP.AffExpr}})
                 continue
             end
             obj_value = get_value(obj)
-            for scen in 1:num_scenarios
-                results[(string(name), scen)] = obj_value
+            for s in 1:num_scenarios
+                results[string(name), s] = obj_value
             end
         end
     elseif t == 2
         model_dict = model.obj_dict
         for (name, obj) in model_dict
-            if obj isa JuMP.ConstraintRef || obj isa Array{<:JuMP.ConstraintRef}
+            if !(obj isa Union{JuMP.VariableRef, Array{JuMP.VariableRef}, JuMP.AffExpr, Array{JuMP.AffExpr}})
                 continue
             end
             obj_value = get_value(obj)
-            results[(string(name), scen)] = obj_value
+            results[string(name), scen] = obj_value
         end
     end
+    return nothing
 end
