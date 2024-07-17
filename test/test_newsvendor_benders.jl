@@ -89,12 +89,31 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     @test total_simulation_cost ≈ -70 atol = 1e-2
 end
 
+function newsvendor_deterministic()
+    inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
+    num_scenarios = length(inputs.demand)
+
+    det_eq_results = LightBenders.deterministic_equivalent(;
+        state_variables_builder,
+        first_stage_builder,
+        second_stage_builder,
+        second_stage_modifier,
+        inputs,
+        num_scenarios,
+    )
+
+    @test det_eq_results["objective", 0] ≈ -70 atol = 1e-2
+end
+
 function test_newsvendor_benders()
     @testset "Benders Newsvendor single cut" begin
         newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.SingleCut)
     end
     @testset "Benders Newsvendor multi cut" begin
         newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
+    end
+    @testset "Deterministic equivalent Newsvendor" begin
+        newsvendor_deterministic()
     end
 end
 

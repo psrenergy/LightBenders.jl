@@ -32,6 +32,7 @@ include("train.jl")
 # Progress tracking
 include("progress_logs/abstractions.jl")
 include("progress_logs/benders_training_iterations.jl")
+include("progress_logs/deterministic_equivalent.jl")
 
 # Interfaces for training results and simulation
 include("policy.jl")

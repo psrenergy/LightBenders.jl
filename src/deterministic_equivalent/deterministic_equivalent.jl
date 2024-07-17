@@ -6,6 +6,8 @@ function deterministic_equivalent(;
     inputs=nothing,
     num_scenarios::Int,
 )
+    DeterministicEquivalentLog(num_scenarios)
+
     model = state_variables_builder(inputs)
     first_stage_builder(model, inputs)
     subproblem = state_variables_builder(inputs)
