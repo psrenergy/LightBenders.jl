@@ -24,9 +24,17 @@ end
 
 function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer)
     if termination_status(model) != MOI.OPTIMAL
-        @info(
-            "Model of stage $t, scenario $s finished with termination status: ", termination_status(model)
-        )
+        if t == 0 && s == 0
+            @info(
+                "Deterministic equivalent model finished with termination status: ",
+                termination_status(model),
+            )
+        else
+            @info(
+                "Model of stage $t, scenario $s finished with termination status: ",
+                termination_status(model),
+            )
+        end
         if termination_status(model) == MOI.INFEASIBLE
             JuMP.compute_conflict!(model)
             print_conflict_to_file(model)

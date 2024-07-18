@@ -15,8 +15,6 @@ end
 Base.@kwdef mutable struct SimulationOptions
     # TODO in the near future we should allow users to select the scenarios
     num_scenarios::Int
-    gather_outputs::Bool = true
-    outputs_path::AbstractString = ""
     implementation_strategy::AbstractSimulationImplementation = BendersSerialSimulation()
     state_handling::SimulationStateHandling.T = SimulationStateHandling.StatesRecalculatedInSimulation
 end
@@ -35,18 +33,16 @@ function simulate(;
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
-    results_recorder::Union{Function, Nothing} = nothing,
     inputs = nothing,
     policy::Policy,
     simulation_options::SimulationOptions
-)::Float64
+)
     if simulation_options.implementation_strategy isa BendersSerialSimulation
         return serial_benders_simulate(;
             state_variables_builder,
             first_stage_builder,
             second_stage_builder,
             second_stage_modifier,
-            results_recorder,
             inputs,
             policy,
             simulation_options,
