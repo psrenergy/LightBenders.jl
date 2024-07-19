@@ -2,12 +2,9 @@ module LightBenders
 
 # Standard library dependencies
 using LinearAlgebra
-using Serialization
 using Statistics
 
 # Third party dependencies
-using Arrow
-using DataFrames
 using EnumX
 using JuMP
 
