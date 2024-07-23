@@ -93,13 +93,17 @@ function newsvendor_deterministic()
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
 
+    options = LightBenders.DeterministicEquivalentOptions(;
+        num_scenarios = num_scenarios,
+    )
+
     det_eq_results = LightBenders.deterministic_equivalent(;
         state_variables_builder,
         first_stage_builder,
         second_stage_builder,
         second_stage_modifier,
         inputs,
-        num_scenarios,
+        options,
     )
 
     @test det_eq_results["objective", 0] ≈ -70 atol = 1e-2

@@ -1,13 +1,18 @@
+Base.@kwdef mutable struct DeterministicEquivalentOptions
+    num_scenarios::Int
+    logs_dir::String = ""
+    write_lp::Bool = false
+end
+
 function deterministic_equivalent(;
     state_variables_builder::Function,
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
     inputs=nothing,
-    num_scenarios::Int,
-    logs_dir::String = "",
-    write_lp::Bool = false,
+    options::DeterministicEquivalentOptions,
 )
+    num_scenarios = options.num_scenarios
     DeterministicEquivalentLog(num_scenarios)
 
     model = state_variables_builder(inputs)
@@ -24,7 +29,7 @@ function deterministic_equivalent(;
         )
     end
     JuMP.optimize!(model)
-    treat_termination_status(model, 0, 0, 0, logs_dir, write_lp)
+    treat_termination_status(model, options)
     results = save_deterministic_results(model, num_scenarios)
     results["objective", 0] = JuMP.objective_value(model)
     return results
