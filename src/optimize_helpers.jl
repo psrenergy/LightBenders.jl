@@ -22,7 +22,7 @@ function print_conflict_to_file(model::JuMP.Model, filename::String = "infeasibl
     return nothing
 end
 
-function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer)
+function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer, file_dir::String)
     if termination_status(model) != MOI.OPTIMAL
         if t == 0 && s == 0
             @info(
@@ -37,7 +37,12 @@ function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer)
         end
         if termination_status(model) == MOI.INFEASIBLE
             JuMP.compute_conflict!(model)
-            print_conflict_to_file(model)
+            if file_dir != "" && !ispath(file_dir)
+                mkdir(file_dir)
+            end
+            file = joinpath(file_dir, "infeasible_model")
+            print_conflict_to_file(model, file)
+            JuMP.write_to_file(model, string(file, ".lp"))
         end
         error("Optimization failed.")
     end

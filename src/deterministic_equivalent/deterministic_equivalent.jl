@@ -5,6 +5,7 @@ function deterministic_equivalent(;
     second_stage_modifier::Function,
     inputs=nothing,
     num_scenarios::Int,
+    log_error_dir::String = "",
 )
     DeterministicEquivalentLog(num_scenarios)
 
@@ -22,7 +23,7 @@ function deterministic_equivalent(;
         )
     end
     JuMP.optimize!(model)
-    treat_termination_status(model, 0, 0)
+    treat_termination_status(model, 0, 0, log_error_dir)
     results = save_deterministic_results(model, num_scenarios)
     results["objective", 0] = JuMP.objective_value(model)
     return results
