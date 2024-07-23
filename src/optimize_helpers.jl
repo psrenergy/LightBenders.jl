@@ -63,8 +63,9 @@ function treat_termination_status(model::JuMP.Model, info_msg::String, file_name
         if termination_status(model) == MOI.INFEASIBLE
             treat_logs_dir(logs_dir)
             JuMP.compute_conflict!(model)
-            print_conflict_to_file(model, file_name)
-            JuMP.write_to_file(model, joinpath(logs_dir, string(infeasible_file_name, ".lp")))
+            file_path = joinpath(logs_dir, string(infeasible_file_name, ".lp"))
+            print_conflict_to_file(model, file_path)
+            JuMP.write_to_file(model, file_path)
         end
         error("Optimization failed.")
     end
