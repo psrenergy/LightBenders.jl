@@ -22,16 +22,34 @@ function print_conflict_to_file(model::JuMP.Model, filename::String = "infeasibl
     return nothing
 end
 
-function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer, file_dir::String)
+function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer, iter::Integer, file_dir::String, write_lp::Bool)
+    if write_lp
+        if t == 0 && s == 0 && iter == 0
+            str = "det_eq_model"
+        else
+            str = "model_stage_$(t)"
+            if s != 0
+                str *= "_scenario_$(s)"
+            end
+            if iter != 0
+                str *= "_iteration_$(iter)"
+            end
+        end
+        if file_dir != "" && !ispath(file_dir)
+            mkdir(file_dir)
+        end
+        file = joinpath(file_dir, str)
+        JuMP.write_to_file(model, string(file, ".lp"))
+    end
     if termination_status(model) != MOI.OPTIMAL
-        if t == 0 && s == 0
+        if t == 0 && s == 0 && iter == 0
             @info(
                 "Deterministic equivalent model finished with termination status: ",
                 termination_status(model),
             )
         else
             @info(
-                "Model of stage $t, scenario $s finished with termination status: ",
+                "Model of stage $t, scenario $s, iteration $iter finished with termination status: ",
                 termination_status(model),
             )
         end

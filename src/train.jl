@@ -12,7 +12,8 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     cut_strategy::CutStrategy.T = CutStrategy.SingleCut
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     stopping_rule::AbstractStoppingRule = IterationLimit(5)
-    log_error_dir::String = ""
+    logs_dir::String = ""
+    write_lp::Bool = false
 end
 
 """
