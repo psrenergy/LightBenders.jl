@@ -58,7 +58,17 @@ function treat_termination_status(model::JuMP.Model, t::Integer, s::Integer, ite
             if file_dir != "" && !ispath(file_dir)
                 mkdir(file_dir)
             end
-            file = joinpath(file_dir, "infeasible_model")
+            str = "infeasible_model"
+            if t != 0
+                str *= "_stage_$(t)"
+            end
+            if s != 0
+                str *= "_scenario_$(s)"
+            end
+            if iter != 0
+                str *= "_iteration_$(iter)"
+            end
+            file = joinpath(file_dir, str)
             print_conflict_to_file(model, file)
             JuMP.write_to_file(model, string(file, ".lp"))
         end
