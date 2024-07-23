@@ -4,7 +4,7 @@ function serial_benders_train(;
     second_stage_builder::Function,
     second_stage_modifier::Function,
     inputs=nothing,
-    policy_training_options::PolicyTrainingOptions
+    policy_training_options::PolicyTrainingOptions,
 )
     validate_benders_training_options(policy_training_options)
     progress = BendersTrainingIterationsLog(policy_training_options)

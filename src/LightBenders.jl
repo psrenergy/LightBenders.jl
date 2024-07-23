@@ -9,6 +9,7 @@ using EnumX
 using JuMP
 
 # Keys aspects of the algorithm
+include("debugging_options.jl")
 include("results.jl")
 include("states.jl")
 include("risk_measures.jl")

@@ -25,36 +25,36 @@ end
 function treat_termination_status(model::JuMP.Model, options::DeterministicEquivalentOptions)
     file_name = "det_eq_model"
     info_msg = "Deterministic equivalent model finished with termination status: $(termination_status(model))"
-    treat_termination_status(model, info_msg, file_name, options)
+    treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
 
 function treat_termination_status(model::JuMP.Model, options::PolicyTrainingOptions, t::Int, iter::Int)
     file_name = "model_stage_$(t)_iteration_$(iter)"
     info_msg = "Training model of stage $t, iteration $iter finished with termination status: $(termination_status(model))"
-    treat_termination_status(model, info_msg, file_name, options)
+    treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
 
 function treat_termination_status(model::JuMP.Model, options::PolicyTrainingOptions, t::Int, s::Int, iter::Int)
     file_name = "model_stage_$(t)_scenario_$(s)_iteration_$(iter)"
     info_msg = "Training model of stage $t, scenario $s, iteration $iter finished with termination status: $(termination_status(model))"
-    treat_termination_status(model, info_msg, file_name, options)
+    treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
 
 function treat_termination_status(model::JuMP.Model, options::SimulationOptions, t::Int, s::Int)
     file_name = "model_stage_$(t)_scenario_$(s)"
     info_msg = "Simulation model of stage $t, scenario $s finished with termination status: $(termination_status(model))"
-    treat_termination_status(model, info_msg, file_name, options)
+    treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
 
-function treat_termination_status(model::JuMP.Model, info_msg::String, file_name::String, options::Union{PolicyTrainingOptions, SimulationOptions, DeterministicEquivalentOptions})
+function treat_termination_status(model::JuMP.Model, info_msg::String, file_name::String, debugging_options::DebuggingOptions)
     file_name
     infeasible_file_name = string("infeasible_", file_name)
-    logs_dir = options.logs_dir
-    if options.write_lp
+    logs_dir = debugging_options.logs_dir
+    if debugging_options.write_lp
         treat_logs_dir(logs_dir)
         JuMP.write_to_file(model, joinpath(logs_dir, string(file_name, ".lp")))
     end
@@ -63,9 +63,9 @@ function treat_termination_status(model::JuMP.Model, info_msg::String, file_name
         if termination_status(model) == MOI.INFEASIBLE
             treat_logs_dir(logs_dir)
             JuMP.compute_conflict!(model)
-            file_path = joinpath(logs_dir, string(infeasible_file_name, ".lp"))
+            file_path = joinpath(logs_dir, infeasible_file_name)
             print_conflict_to_file(model, file_path)
-            JuMP.write_to_file(model, file_path)
+            JuMP.write_to_file(model, string(file_path, ".lp"))
         end
         error("Optimization failed.")
     end

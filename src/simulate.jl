@@ -17,8 +17,7 @@ Base.@kwdef mutable struct SimulationOptions
     num_scenarios::Int
     implementation_strategy::AbstractSimulationImplementation = BendersSerialSimulation()
     state_handling::SimulationStateHandling.T = SimulationStateHandling.StatesRecalculatedInSimulation
-    logs_dir::String = ""
-    write_lp::Bool = false
+    debugging_options::DebuggingOptions = DebuggingOptions()
 end
 
 function SimulationOptions(policy_training_options::PolicyTrainingOptions; kwargs...)

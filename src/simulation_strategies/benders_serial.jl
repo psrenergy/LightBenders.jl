@@ -5,7 +5,7 @@ function serial_benders_simulate(;
     second_stage_modifier::Function,
     inputs=nothing,
     policy::Policy,
-    simulation_options::SimulationOptions
+    simulation_options::SimulationOptions,
 )
     stages = 2
     scenarios = simulation_options.num_scenarios

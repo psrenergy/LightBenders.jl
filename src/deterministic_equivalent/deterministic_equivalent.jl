@@ -1,7 +1,6 @@
 Base.@kwdef mutable struct DeterministicEquivalentOptions
     num_scenarios::Int
-    logs_dir::String = ""
-    write_lp::Bool = false
+    debugging_options::DebuggingOptions = DebuggingOptions()
 end
 
 function deterministic_equivalent(;
