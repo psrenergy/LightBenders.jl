@@ -11,7 +11,8 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     implementation_strategy::AbstractTrainingImplementation = BendersSerialTraining()
     cut_strategy::CutStrategy.T = CutStrategy.SingleCut
     risk_measure::AbstractRiskMeasure = RiskNeutral()
-    stopping_rule::AbstractStoppingRule = IterationLimit(5) 
+    stopping_rule::AbstractStoppingRule = IterationLimit(5)
+    debugging_options::DebuggingOptions = DebuggingOptions()
 end
 
 """

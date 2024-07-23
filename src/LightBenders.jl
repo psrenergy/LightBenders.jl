@@ -9,7 +9,7 @@ using EnumX
 using JuMP
 
 # Keys aspects of the algorithm
-include("optimize_helpers.jl")
+include("debugging_options.jl")
 include("results.jl")
 include("states.jl")
 include("risk_measures.jl")
@@ -44,5 +44,8 @@ include("simulation_strategies/benders_serial.jl")
 # deterministic equivalent formulation
 include("deterministic_equivalent/deterministic_equivalent.jl")
 include("deterministic_equivalent/results.jl")
+
+# Helpers
+include("optimize_helpers.jl")
 
 end # module LightBenders
