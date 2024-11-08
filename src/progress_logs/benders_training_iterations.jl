@@ -19,12 +19,12 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
     # TODO add more prints
 
     progress_table = ProgressTable(
-        header = ["Iteration", "Lower bound", "Upper bound", "Gap", "Time (s)"],
+        header = ["Iteration", "Lower bound", "Upper bound", "Gap", "Time [s]"],
         widths = [11, 13, 13, 13, 11],
         format = ["%d", "%.4e", "%.4e", "%.4e", "%.2f"],
         border = true,
         color = [:normal, :normal, :normal, :magenta, :normal],
-        alignment = [:right, :center, :center, :center, :center],
+        alignment = [:right, :center, :center, :center, :right],
     )
     initialize!(progress_table)
 
