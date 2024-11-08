@@ -8,6 +8,8 @@ using Statistics
 using EnumX
 using JuMP
 
+using ProgressTables
+
 # Keys aspects of the algorithm
 include("debugging_options.jl")
 include("results.jl")
