@@ -1,8 +1,9 @@
 Base.@kwdef mutable struct BendersTrainingIterationsLog <: AbstractProgressLog
-    LB::Vector{Float64} = Float64[]
-    UB::Vector{Float64} = Float64[]
+    LB::Vector{Float64} = []
+    UB::Vector{Float64} = []
     current_iteration::Int = 0
     start_time::Float64 = time()
+    progress_table::ProgressTable
 end
 
 function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOptions)
@@ -16,10 +17,18 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
     println("Risk measure: ", policy_training_options.risk_measure)
     println("Stopping rule: ", policy_training_options.stopping_rule)
     # TODO add more prints
-    println("-------------------------------------------------------------------")
-    println("  iteration     lower bound     upper bound      gap     time (s)  ")
-    println("-------------------------------------------------------------------")
-    return BendersTrainingIterationsLog()
+
+    progress_table = ProgressTable(
+        header = ["Iteration", "Lower bound", "Upper bound", "Gap", "Time (s)"],
+        widths = [11, 13, 13, 13, 11],
+        format = ["%d", "%.4e", "%.4e", "%.4e", "%.2f"],
+        border = true,
+        color = [:normal, :normal, :normal, :magenta, :normal],
+        alignment = [:right, :center, :center, :center, :center],
+    )
+    initialize!(progress_table)
+
+    return BendersTrainingIterationsLog(progress_table = progress_table)
 end
 
 function current_upper_bound(progress::BendersTrainingIterationsLog)
@@ -49,20 +58,17 @@ function start_iteration!(progress::BendersTrainingIterationsLog)
 end
 
 function report_current_bounds(progress::BendersTrainingIterationsLog)
-    println(
-        "  ", 
-        lpad(progress.current_iteration, 9), 
-        "     ", 
-        lpad(round(current_lower_bound(progress), digits=2), 11), 
-        "     ", 
-        lpad(round(current_upper_bound(progress), digits=2), 11), 
-        "    ", 
-        lpad(round(current_gap(progress), digits=2), 5),
-        "     ",
-        lpad(round(time() - progress.start_time, digits=2), 8)
+    next!(progress.progress_table, 
+        [
+            progress.current_iteration,
+            current_lower_bound(progress),
+            current_upper_bound(progress),
+            current_gap(progress),
+            time() - progress.start_time,
+        ]
     )
 end
 
 function finish_training!(progress::BendersTrainingIterationsLog)
-    println("-------------------------------------------------------------------")
+    finalize!(progress.progress_table)
 end
