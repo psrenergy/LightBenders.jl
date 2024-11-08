@@ -23,7 +23,7 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
         widths = [11, 13, 13, 13, 11],
         format = ["%d", "%.4e", "%.4e", "%.4e", "%.2f"],
         border = true,
-        color = [:normal, :normal, :normal, :magenta, :normal],
+        color = [:normal, :normal, :normal, :light_magenta, :normal],
         alignment = [:right, :center, :center, :center, :right],
     )
     initialize!(progress_table)
