@@ -43,7 +43,7 @@ function convergence_test(
     rule::Gap,
 )
     has_converged = isapprox(last_lower_bound(progress), last_upper_bound(progress); atol = rule.abstol, rtol = rule.reltol)
-    return ConvergenceResult(has_converged, "converged with $rule.")
+    return ConvergenceResult(has_converged, "converged with gap.")
 end
 
 """
@@ -62,5 +62,5 @@ function convergence_test(
     rule::GapWithMinimumNumberOfIterations,
 )
     both_converged = progress.current_iteration >= rule.min_iterations && has_converged(convergence_test(progress, Gap(rule.abstol, rule.reltol)))
-    return ConvergenceResult(both_converged, "converged with $rule.")
+    return ConvergenceResult(both_converged, "converged with gap with minimum number of iterations")
 end
