@@ -26,7 +26,7 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
         color = [:normal, :normal, :normal, :light_magenta, :normal],
         alignment = [:right, :center, :center, :center, :right],
     )
-    initialize!(progress_table)
+    initialize(progress_table)
 
     return BendersTrainingIterationsLog(progress_table = progress_table)
 end
@@ -58,7 +58,7 @@ function start_iteration!(progress::BendersTrainingIterationsLog)
 end
 
 function report_current_bounds(progress::BendersTrainingIterationsLog)
-    next!(progress.progress_table, 
+    next(progress.progress_table, 
         [
             progress.current_iteration,
             current_lower_bound(progress),
@@ -70,5 +70,5 @@ function report_current_bounds(progress::BendersTrainingIterationsLog)
 end
 
 function finish_training!(progress::BendersTrainingIterationsLog)
-    finalize!(progress.progress_table)
+    finalize(progress.progress_table)
 end
