@@ -13,6 +13,7 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     stopping_rule::AbstractStoppingRule = IterationLimit(5)
     debugging_options::DebuggingOptions = DebuggingOptions()
+    retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
 end
 
 """

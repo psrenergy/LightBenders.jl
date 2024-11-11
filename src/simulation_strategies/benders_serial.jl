@@ -30,7 +30,8 @@ function serial_benders_simulate(;
             if t == 2
                 second_stage_modifier(model, inputs, s)
             end
-            JuMP.optimize!(model)
+            store_retry_data(model, simulation_options)
+            optimize_with_retry(model)
             treat_termination_status(model, simulation_options, t, s)
             future_cost = get_future_cost(model, policy.policy_training_options)
             simulation_total_cost += (JuMP.objective_value(model) - future_cost) / scenarios
