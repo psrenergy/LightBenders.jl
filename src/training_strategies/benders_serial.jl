@@ -18,7 +18,8 @@ function serial_benders_train(;
         state_variables_model = state_variables_builder(inputs)
         first_stage_model = first_stage_builder(state_variables_model, inputs)
         add_all_cuts!(first_stage_model, pool[t], policy_training_options)
-        JuMP.optimize!(first_stage_model)
+        store_retry_data(first_stage_model, policy_training_options)
+        optimize_with_retry(first_stage_model)
         treat_termination_status(first_stage_model, policy_training_options, t, progress.current_iteration)
         state = get_state(first_stage_model)
         future_cost = get_future_cost(first_stage_model, policy_training_options)
@@ -33,7 +34,8 @@ function serial_benders_train(;
         for s in 1:policy_training_options.num_scenarios
             set_state(second_stage_model, state)
             second_stage_modifier(second_stage_model, inputs, s)
-            JuMP.optimize!(second_stage_model)
+            store_retry_data(second_stage_model, policy_training_options)
+            optimize_with_retry(second_stage_model)
             treat_termination_status(second_stage_model, policy_training_options, t, s, progress.current_iteration)
             coefs, rhs, obj = get_cut(second_stage_model, state)
             # Store the opening cut in a temporary cut pool
