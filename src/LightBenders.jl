@@ -1,12 +1,16 @@
 module LightBenders
 
 # Standard library dependencies
+using JobQueueMPI
 using LinearAlgebra
 using Statistics
 
 # Third party dependencies
 using EnumX
 using JuMP
+
+# module constants
+const JQM = JobQueueMPI
 
 # Keys aspects of the algorithm
 include("debugging_options.jl")
@@ -37,6 +41,7 @@ include("simulate.jl")
 
 # training implementations
 include("training_strategies/benders_serial.jl")
+include("training_strategies/benders_job_queue.jl")
 
 # simulation implementations
 include("simulation_strategies/benders_serial.jl")
