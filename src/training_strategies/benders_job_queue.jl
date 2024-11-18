@@ -81,7 +81,7 @@ function job_queue_benders_train(;
         t = 2
         local_pools = LocalCutPool()
         for s in 1:policy_training_options.num_scenarios
-            message = SecondStageMessage(s, progress.current_iteration, state)
+            message = SecondStageMessage(progress.current_iteration, s, state)
             JQM.add_job_to_queue!(controller, message)
         end
         while !all_jobs_done(controller)
@@ -115,7 +115,7 @@ function job_queue_benders_train(;
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result)
-            println(message(convergence_result))
+            println(results_message(convergence_result))
             finish_training!(progress)
             JQM.send_termination_message(controller)
             break

@@ -9,7 +9,7 @@ struct ConvergenceResult
 end
 
 has_converged(result::ConvergenceResult) = result.has_converged
-message(result::ConvergenceResult) = result.message
+results_message(result::ConvergenceResult) = result.message
 
 """
     IterationLimit(max_iterations::Int)
