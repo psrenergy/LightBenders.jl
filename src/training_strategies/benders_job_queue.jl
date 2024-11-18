@@ -117,7 +117,7 @@ function job_queue_benders_train(;
         if has_converged(convergence_result)
             println(results_message(convergence_result))
             finish_training!(progress)
-            JQM.send_termination_message(controller)
+            JQM.send_termination_message()
             break
         end
     end
@@ -188,7 +188,8 @@ function worker_first_stage(
     state_variables_model = state_variables_builder(inputs)
     first_stage_model = first_stage_builder(state_variables_model, inputs)
     add_all_cuts!(first_stage_model, pool[t], policy_training_options)
-    JuMP.optimize!(first_stage_model)
+    store_retry_data(first_stage_model, policy_training_options)
+    optimize_with_retry(first_stage_model)
     treat_termination_status(first_stage_model, policy_training_options, t, iteration)
     state = get_state(first_stage_model)
     future_cost = get_future_cost(first_stage_model, policy_training_options)
@@ -219,7 +220,8 @@ function worker_second_stage(
     second_stage_model = second_stage_builder(state_variables_model, inputs)
     set_state(second_stage_model, state)
     second_stage_modifier(second_stage_model, inputs, scenario)
-    JuMP.optimize!(second_stage_model)
+    store_retry_data(second_stage_model, policy_training_options)
+    optimize_with_retry(second_stage_model)
     treat_termination_status(second_stage_model, policy_training_options, t, scenario, iteration)
     coefs, rhs, obj = get_cut(second_stage_model, state)
     future_cost = get_future_cost(second_stage_model, policy_training_options)
