@@ -18,6 +18,7 @@ Base.@kwdef mutable struct SimulationOptions
     implementation_strategy::AbstractSimulationImplementation = BendersSerialSimulation()
     state_handling::SimulationStateHandling.T = SimulationStateHandling.StatesRecalculatedInSimulation
     debugging_options::DebuggingOptions = DebuggingOptions()
+    retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
 end
 
 function SimulationOptions(policy_training_options::PolicyTrainingOptions; kwargs...)

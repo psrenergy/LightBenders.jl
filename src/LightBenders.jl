@@ -8,6 +8,7 @@ using Statistics
 # Third party dependencies
 using EnumX
 using JuMP
+using ProgressTables
 
 # module constants
 const JQM = JobQueueMPI
@@ -17,6 +18,7 @@ include("debugging_options.jl")
 include("results.jl")
 include("states.jl")
 include("risk_measures.jl")
+include("options_retry.jl")
 
 # Cut strategy implementations
 include("cut_strategies/cuts_base.jl")

@@ -1,3 +1,3 @@
 {
-    "julia.executablePath": "${env:JULIA_185}"
+    "julia.executablePath": "${env:JULIA_194}"
 }
