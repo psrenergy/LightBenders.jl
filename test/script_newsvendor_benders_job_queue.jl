@@ -1,4 +1,4 @@
-module TestNewsvendorBenders
+module TestNewsvendorBendersJobQueue
 
 using Test
 using LightBenders
@@ -56,7 +56,7 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     policy_training_options = LightBenders.PolicyTrainingOptions(;
         num_scenarios=num_scenarios,
         lower_bound = -1e6,
-        implementation_strategy = LightBenders.SerialTraining(),
+        implementation_strategy = LightBenders.JobQueueTraining(),
         stopping_rule = LightBenders.GapWithMinimumNumberOfIterations(;abstol = 1e-1, min_iterations = 2),
         cut_strategy = cut_strategy
     )
@@ -69,6 +69,10 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
         inputs = inputs,
         policy_training_options
     )
+
+    if LightBenders.JQM.is_worker_process()
+        return nothing
+    end
 
     @test LightBenders.lower_bound(policy) ≈ -70
     @test LightBenders.upper_bound(policy) ≈ -70
@@ -89,35 +93,12 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
     @test results["objective", 0] ≈ -70 atol = 1e-2
 end
 
-function newsvendor_deterministic()
-    inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
-    num_scenarios = length(inputs.demand)
-
-    options = LightBenders.DeterministicEquivalentOptions(;
-        num_scenarios = num_scenarios,
-    )
-
-    det_eq_results = LightBenders.deterministic_equivalent(;
-        state_variables_builder,
-        first_stage_builder,
-        second_stage_builder,
-        second_stage_modifier,
-        inputs,
-        options,
-    )
-
-    @test det_eq_results["objective", 0] ≈ -70 atol = 1e-2
-end
-
 function test_newsvendor_benders()
-    @testset "Benders Newsvendor single cut" begin
+    @testset "[Job Queue] Benders Newsvendor single cut" begin
         newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.SingleCut)
     end
-    @testset "Benders Newsvendor multi cut" begin
+    @testset "[Job Queue] Benders Newsvendor multi cut" begin
         newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
-    end
-    @testset "Deterministic equivalent Newsvendor" begin
-        newsvendor_deterministic()
     end
 end
 
@@ -133,47 +114,6 @@ function runtests()
     end
 end
 
-TestNewsvendorBenders.runtests()
+TestNewsvendorBendersJobQueue.runtests()
 
-end # module TestNewsvendorBenders
-
-# Equivalent code in SDDP.jl
-# using SDDP, JuMP, HiGHS
-# function test_bender_sddp()
-#     buy_price = 5
-#     sell_price = 10
-#     return_price = 1
-#     max_storage = 100
-#     demand = 10:10:30
-#     model = SDDP.LinearPolicyGraph(;
-#         stages = 2,
-#         sense = :Min,
-#         lower_bound = -1e3,
-#         optimizer = HiGHS.Optimizer,
-#     ) do subproblem, stage
-#         @variable(subproblem, 0 <= bought, SDDP.State, initial_value = 0.0)
-#         if stage == 1
-#             @constraint(subproblem, bought.out <= max_storage) 
-#             @stageobjective(
-#                 subproblem,
-#                 bought.out * buy_price,
-#             )
-#         else
-#             @variable(subproblem, sold >= 0)
-#             @variable(subproblem, returned >= 0)
-#             SDDP.parameterize(subproblem, demand) do s
-#                 JuMP.set_upper_bound(sold, s)
-#             end
-#             @constraint(subproblem, balance, sold + returned <= bought.in)
-#             @stageobjective(
-#                 subproblem,
-#                 - sold * sell_price - returned * return_price,
-#             )
-#         end
-#     end
-#     det = SDDP.deterministic_equivalent(model, HiGHS.Optimizer)
-#     set_silent(det)
-#     JuMP.optimize!(det)
-#     @show JuMP.termination_status(det)
-#     @show JuMP.objective_value(det)
-# end
+end # module TestNewsvendorBendersJobQueue

@@ -1,6 +1,8 @@
 abstract type AbstractTrainingImplementation end
 
-struct BendersSerialTraining <: AbstractTrainingImplementation end
+struct SerialTraining <: AbstractTrainingImplementation end
+
+struct JobQueueTraining <: AbstractTrainingImplementation end
 
 """
 """
@@ -8,7 +10,7 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     num_scenarios::Int
     lower_bound::Real = 0.0
     discount_rate::Real = 0.0
-    implementation_strategy::AbstractTrainingImplementation = BendersSerialTraining()
+    implementation_strategy::AbstractTrainingImplementation = SerialTraining()
     cut_strategy::CutStrategy.T = CutStrategy.SingleCut
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     stopping_rule::AbstractStoppingRule = IterationLimit(5)
@@ -39,8 +41,17 @@ function train(;
     inputs = nothing,
     policy_training_options::PolicyTrainingOptions
 )
-    if policy_training_options.implementation_strategy isa BendersSerialTraining
+    if policy_training_options.implementation_strategy isa SerialTraining
         return serial_benders_train(;
+            state_variables_builder,
+            first_stage_builder,
+            second_stage_builder,
+            second_stage_modifier,
+            inputs,
+            policy_training_options,
+        )
+    elseif policy_training_options.implementation_strategy isa JobQueueTraining
+        return job_queue_benders_train(;
             state_variables_builder,
             first_stage_builder,
             second_stage_builder,
