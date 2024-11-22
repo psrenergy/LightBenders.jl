@@ -28,7 +28,7 @@ function serial_benders_simulate(;
         if t == 1 # first stage
             state_variables_model = state_variables_builder(inputs)
             model = first_stage_builder(state_variables_model, inputs)
-            add_all_cuts!(model, policy.pool[t, policy.policy_training_options)
+            add_all_cuts!(model, policy.pool[t, policy.policy_training_options])
         elseif t == 2 # second stage
             state_variables_model = state_variables_builder(inputs)
             model = second_stage_builder(state_variables_model, inputs)
