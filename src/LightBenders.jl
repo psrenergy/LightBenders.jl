@@ -1,14 +1,12 @@
 module LightBenders
 
-# Standard library dependencies
-using JobQueueMPI
-using LinearAlgebra
-using Statistics
-
-# Third party dependencies
 using EnumX
+using JobQueueMPI
 using JuMP
+using LinearAlgebra
+using ProgressMeter
 using ProgressTables
+using Statistics
 
 # module constants
 const JQM = JobQueueMPI
