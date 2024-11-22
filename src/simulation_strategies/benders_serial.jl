@@ -17,11 +17,11 @@ function serial_benders_simulate(;
     results = Dict{Tuple{String, Int}, Any}() # (variable_name, scenario) => value
 
     p = Progress(
-        stages, 
-        barlen=60,
+        stages * scenarios, 
+        barlen=50,
         barglyphs=BarGlyphs("[=> ]"),
         color=:white,
-        desc="",
+        desc="Simulating",
     )
 
     for t in 1:stages
@@ -51,9 +51,9 @@ function serial_benders_simulate(;
             else
                 error("State handling not implemented.")
             end
-        end
 
-        next!(p)
+            next!(p)
+        end
     end
 
     finish!(p)
