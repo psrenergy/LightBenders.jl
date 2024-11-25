@@ -39,7 +39,7 @@ function second_stage_builder(sp, inputs)
     @variable(sp, returned >= 0)
     @constraint(sp, sold_dem_con, sold <= dem)
     @constraint(sp, balance, sold + returned <= bought)
-    @objective(sp, Min, - sold * inputs.sell_price - returned * inputs.return_price)
+    @objective(sp, Min, -sold * inputs.sell_price - returned * inputs.return_price)
     return sp
 end
 
@@ -49,16 +49,19 @@ function second_stage_modifier(sp, inputs, s)
     return nothing
 end
 
-function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
+function newsvendor_benders(; cut_strategy = LightBenders.CutStrategy.MultiCut)
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
 
     policy_training_options = LightBenders.PolicyTrainingOptions(;
-        num_scenarios=num_scenarios,
+        num_scenarios = num_scenarios,
         lower_bound = -1e6,
         implementation_strategy = LightBenders.SerialTraining(),
-        stopping_rule = LightBenders.GapWithMinimumNumberOfIterations(;abstol = 1e-1, min_iterations = 2),
-        cut_strategy = cut_strategy
+        stopping_rule = LightBenders.GapWithMinimumNumberOfIterations(;
+            abstol = 1e-1,
+            min_iterations = 2,
+        ),
+        cut_strategy = cut_strategy,
     )
 
     policy = LightBenders.train(;
@@ -67,7 +70,7 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
         second_stage_builder,
         second_stage_modifier,
         inputs = inputs,
-        policy_training_options
+        policy_training_options,
     )
 
     @test LightBenders.lower_bound(policy) ≈ -70
@@ -83,7 +86,7 @@ function newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
         simulation_options = LightBenders.SimulationOptions(
             policy_training_options;
             implementation_strategy = LightBenders.BendersSerialSimulation(),
-        )
+        ),
     )
 
     @test results["objective", 0] ≈ -70 atol = 1e-2
@@ -93,9 +96,7 @@ function newsvendor_deterministic()
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
 
-    options = LightBenders.DeterministicEquivalentOptions(;
-        num_scenarios = num_scenarios,
-    )
+    options = LightBenders.DeterministicEquivalentOptions(; num_scenarios = num_scenarios)
 
     det_eq_results = LightBenders.deterministic_equivalent(;
         state_variables_builder,
@@ -111,10 +112,10 @@ end
 
 function test_newsvendor_benders()
     @testset "Benders Newsvendor single cut" begin
-        newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.SingleCut)
+        newsvendor_benders(; cut_strategy = LightBenders.CutStrategy.SingleCut)
     end
     @testset "Benders Newsvendor multi cut" begin
-        newsvendor_benders(;cut_strategy = LightBenders.CutStrategy.MultiCut)
+        newsvendor_benders(; cut_strategy = LightBenders.CutStrategy.MultiCut)
     end
     @testset "Deterministic equivalent Newsvendor" begin
         newsvendor_deterministic()

@@ -1,7 +1,7 @@
 using Test
 
 function test_modules(dir::AbstractString)
-    result = Dict{String, Vector{String}}()
+    result = Dict{String,Vector{String}}()
     for (root, dirs, files) in walkdir(dir)
         for file in joinpath.(root, filter(f -> occursin(r"test_(.)+\.jl", f), files))
             main_case = splitpath(file)[end-2]
