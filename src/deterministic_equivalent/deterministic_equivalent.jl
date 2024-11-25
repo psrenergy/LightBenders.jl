@@ -8,7 +8,7 @@ function deterministic_equivalent(;
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
-    inputs=nothing,
+    inputs = nothing,
     options::DeterministicEquivalentOptions,
 )
     num_scenarios = options.num_scenarios
@@ -61,7 +61,7 @@ function copy_and_replace_variables(
 )
     return JuMP.GenericAffExpr(
         src.constant,
-        Pair{VariableRef,Float64}[
+        Pair{VariableRef, Float64}[
             src_to_dest_variable[key] => val for (key, val) in src.terms
         ],
     )
@@ -73,7 +73,7 @@ function copy_and_replace_variables(
 )
     return JuMP.GenericQuadExpr(
         copy_and_replace_variables(src.aff, src_to_dest_variable),
-        Pair{UnorderedPair{VariableRef},Float64}[
+        Pair{UnorderedPair{VariableRef}, Float64}[
             UnorderedPair{VariableRef}(
                 src_to_dest_variable[pair.a],
                 src_to_dest_variable[pair.b],
@@ -104,7 +104,7 @@ function push_model!(
     model::JuMP.Model,
     subproblem::JuMP.Model,
     scenario::Int,
-    num_scenarios::Int
+    num_scenarios::Int,
 )
     # push variables
     src_variables = all_variables_but_state(subproblem)

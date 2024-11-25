@@ -2,7 +2,7 @@ abstract type AbstractSimulationImplementation end
 
 struct BendersSerialSimulation <: AbstractSimulationImplementation end
 
-""" 
+"""
 """
 @enumx SimulationStateHandling begin
     # This is also known as commercial simulation
@@ -24,7 +24,7 @@ end
 function SimulationOptions(policy_training_options::PolicyTrainingOptions; kwargs...)
     return SimulationOptions(;
         num_scenarios = policy_training_options.num_scenarios,
-        kwargs...
+        kwargs...,
     )
 end
 
@@ -37,7 +37,7 @@ function simulate(;
     second_stage_modifier::Function,
     inputs = nothing,
     policy::Policy,
-    simulation_options::SimulationOptions
+    simulation_options::SimulationOptions,
 )
     if simulation_options.implementation_strategy isa BendersSerialSimulation
         return serial_benders_simulate(;
@@ -53,4 +53,3 @@ function simulate(;
         error("Algorithm not implemented.")
     end
 end
-

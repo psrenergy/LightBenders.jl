@@ -15,7 +15,6 @@ Abstract type to hold various implementations of cut pools. A cut pool is a data
 """
 abstract type AbstractCutPool end
 
-
 """
     initialize_cut_pool(options)
 
@@ -29,6 +28,7 @@ function initialize_cut_pool(options)
         return [LightBenders.CutPoolMultiCut() for _ in 1:num_stages]
     end
     error("Not implemented.")
+    return nothing
 end
 
 """
@@ -64,7 +64,7 @@ end
 
 Add a cut to a Model and return the constraint reference.
 """
-function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T) where T <: Real
+function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T) where {T <: Real}
     alpha = epigraph_variable
     cache = model.ext[:state]::StateCache
     cref = @constraint(model, alpha >= rhs + dot(coefs, cache.variables))

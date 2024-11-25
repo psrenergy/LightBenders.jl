@@ -3,7 +3,7 @@ function serial_benders_simulate(;
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
-    inputs=nothing,
+    inputs = nothing,
     policy::Policy,
     simulation_options::SimulationOptions,
 )

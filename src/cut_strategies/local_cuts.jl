@@ -16,11 +16,11 @@ function number_of_cuts(pool::LocalCutPool)
 end
 
 function store_cut!(
-    pool::LocalCutPool, 
-    coefs::Vector{Float64}, 
-    state::Vector{Float64}, 
-    rhs::Float64, 
-    obj::Float64
+    pool::LocalCutPool,
+    coefs::Vector{Float64},
+    state::Vector{Float64},
+    rhs::Float64,
+    obj::Float64,
 )
     push!(pool.coefs, coefs)
     push!(pool.state, state)

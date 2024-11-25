@@ -14,21 +14,22 @@ function number_of_cuts(pool::CutPoolMultiCut)
 end
 
 function store_cut!(
-    pool_multicut::CutPoolMultiCut, 
-    local_pool::LocalCutPool
+    pool_multicut::CutPoolMultiCut,
+    local_pool::LocalCutPool,
 )
     push!(pool_multicut.cuts, local_pool)
     return nothing
 end
 
 function store_cut!(
-    pool::Vector{CutPoolMultiCut}, 
+    pool::Vector{CutPoolMultiCut},
     local_cuts::LocalCutPool,
     state::Vector{Float64},
     options,
-    t::Integer
+    t::Integer,
 )
     store_cut!(pool[t-1], local_cuts)
+    return nothing
 end
 
 function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training_options)
@@ -42,16 +43,16 @@ function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training
 end
 
 function add_multi_cut_risk_neutral_cuts!(
-    model::JuMP.Model, 
+    model::JuMP.Model,
     alphas::Vector{JuMP.VariableRef},
-    pool::CutPoolMultiCut, 
-    policy_training_options
+    pool::CutPoolMultiCut,
+    policy_training_options,
 )
     for scen in 1:policy_training_options.num_scenarios
         JuMP.set_objective_coefficient(
-            model, 
-            alphas[scen], 
-            (1.0 - policy_training_options.discount_rate) / policy_training_options.num_scenarios
+            model,
+            alphas[scen],
+            (1.0 - policy_training_options.discount_rate) / policy_training_options.num_scenarios,
         )
         for i in 1:length(pool.cuts)
             add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen])
@@ -61,33 +62,34 @@ function add_multi_cut_risk_neutral_cuts!(
 end
 
 function add_multi_cut_cvar_cuts!(
-    model::JuMP.Model, 
+    model::JuMP.Model,
     alphas::Vector{JuMP.VariableRef},
-    pool::CutPoolMultiCut, 
-    policy_training_options
+    pool::CutPoolMultiCut,
+    policy_training_options,
 )
     discount_rate_multiplier = (1.0 - policy_training_options.discount_rate)
     JuMP.@variable(model, z_explicit_cvar)
     # λ * z
     JuMP.set_objective_coefficient(
-        model, 
-        z_explicit_cvar, 
-        discount_rate_multiplier * (policy_training_options.risk_measure.lambda)
+        model,
+        z_explicit_cvar,
+        discount_rate_multiplier * (policy_training_options.risk_measure.lambda),
     )
     JuMP.@variable(model, delta_explicit_cvar[scen = 1:policy_training_options.num_scenarios] >= 0)
     for scen in 1:policy_training_options.num_scenarios
         # (1 - λ)/L * sum(alphas) 
         JuMP.set_objective_coefficient(
-            model, 
-            alphas[scen], 
-            discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) / policy_training_options.num_scenarios
+            model,
+            alphas[scen],
+            discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) / policy_training_options.num_scenarios,
         )
         # λ / ((1 - CVaR_\alpha) * L) * sum(deltas)
         JuMP.set_objective_coefficient(
-            model, 
-            delta_explicit_cvar[scen], 
-            discount_rate_multiplier * 
-            (policy_training_options.risk_measure.lambda) / ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_scenarios)
+            model,
+            delta_explicit_cvar[scen],
+            discount_rate_multiplier *
+            (policy_training_options.risk_measure.lambda) /
+            ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_scenarios),
         )
         # Add delta constraint
         JuMP.@constraint(model, delta_explicit_cvar[scen] >= alphas[scen] - z_explicit_cvar)

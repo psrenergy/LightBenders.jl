@@ -30,7 +30,7 @@ end
 
 Train a policy using the Benders algorithm. There are various ways of performing this training,
 which are controlled by the options argument. The `state_variables_builder`, `first_stage_builder`, `second_stage_builder` and `second_stage_modifier`
-functions are used to construct and modify the models that are used in the training process. 
+functions are used to construct and modify the models that are used in the training process.
 The inputs argument contains the data that is used to build the models.
 """
 function train(;
@@ -39,7 +39,7 @@ function train(;
     second_stage_builder::Function,
     second_stage_modifier::Function,
     inputs = nothing,
-    policy_training_options::PolicyTrainingOptions
+    policy_training_options::PolicyTrainingOptions,
 )
     if policy_training_options.implementation_strategy isa SerialTraining
         return serial_benders_train(;

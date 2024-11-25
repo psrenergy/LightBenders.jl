@@ -19,11 +19,11 @@ function number_of_cuts(pool::CutPoolSingleCut)
 end
 
 function store_cut!(
-    pool::CutPoolSingleCut, 
-    coefs::Vector{Float64}, 
-    state::Vector{Float64}, 
-    rhs::Float64, 
-    obj::Float64
+    pool::CutPoolSingleCut,
+    coefs::Vector{Float64},
+    state::Vector{Float64},
+    rhs::Float64,
+    obj::Float64,
 )
     push!(pool.coefs, coefs)
     push!(pool.state, state)
@@ -33,11 +33,11 @@ function store_cut!(
 end
 
 function store_cut!(
-    pool::Vector{CutPoolSingleCut}, 
+    pool::Vector{CutPoolSingleCut},
     local_cuts::LocalCutPool,
     state::Vector{Float64},
     options,
-    t::Integer
+    t::Integer,
 )
     if isa(options.risk_measure, RiskNeutral)
         return risk_neutral_single_cut!(pool, local_cuts, state, options, t)
@@ -49,11 +49,11 @@ function store_cut!(
 end
 
 function risk_neutral_single_cut!(
-    pool::Vector{CutPoolSingleCut}, 
-    local_cuts::LocalCutPool, 
+    pool::Vector{CutPoolSingleCut},
+    local_cuts::LocalCutPool,
     state::Vector{Float64},
     options,
-    t::Integer
+    t::Integer,
 )
     num_local_cuts = length(local_cuts.obj)
     obj = mean(local_cuts.obj)
@@ -67,11 +67,11 @@ function risk_neutral_single_cut!(
 end
 
 function cvar_single_cut!(
-    pool::Vector{CutPoolSingleCut}, 
-    local_cuts::LocalCutPool, 
+    pool::Vector{CutPoolSingleCut},
+    local_cuts::LocalCutPool,
     state::Vector{Float64},
     options,
-    t::Int
+    t::Int,
 )
     weights = build_cvar_weights(local_cuts.obj, options.risk_measure.alpha, options.risk_measure.lambda)
     obj = dot(weights, local_cuts.obj)
