@@ -1,4 +1,8 @@
+using Aqua
+using LightBenders
 using Test
+
+include("aqua.jl")
 
 function test_modules(dir::AbstractString)
     result = Dict{String, Vector{String}}()
@@ -14,14 +18,24 @@ function test_modules(dir::AbstractString)
     return result
 end
 
-@testset "Tests" begin
-    for (main_case, files) in test_modules(@__DIR__)
-        @testset "$main_case" begin
-            for file in files
-                @testset "$(basename(dirname(file)))" begin
-                    include(file)
+function test_all()    
+    @testset "Aqua.jl" begin
+        test_aqua()
+    end
+
+    @testset "Tests" begin
+        for (main_case, files) in test_modules(@__DIR__)
+            @testset "$main_case" begin
+                for file in files
+                    @testset "$(basename(dirname(file)))" begin
+                        include(file)
+                    end
                 end
             end
         end
     end
+
+    return nothing
 end
+
+test_all()
