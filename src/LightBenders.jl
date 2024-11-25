@@ -4,11 +4,9 @@ using EnumX
 using JobQueueMPI
 using JuMP
 using LinearAlgebra
-using ProgressMeter
 using ProgressTables
 using Statistics
 
-# module constants
 const JQM = JobQueueMPI
 
 # Keys aspects of the algorithm
