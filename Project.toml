@@ -1,6 +1,6 @@
 name = "LightBenders"
 uuid = "2e9fe063-9687-4d41-bf41-4f062739391f"
-authors = ["guilhermebodin <guilherme.b.moraes@gmail.com>"]
+authors = ["guilhermebodin", "raphasampaio", "viniciusjusten"]
 version = "0.1.1"
 
 [deps]
