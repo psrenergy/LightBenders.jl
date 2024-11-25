@@ -29,8 +29,8 @@ function job_queue_benders_train(;
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
-    inputs=nothing,
-    policy_training_options::PolicyTrainingOptions
+    inputs = nothing,
+    policy_training_options::PolicyTrainingOptions,
 )
     JQM.mpi_init()
     JQM.mpi_barrier()
@@ -123,20 +123,20 @@ function job_queue_benders_train(;
     end
     JQM.mpi_barrier()
     return Policy(
-        progress=progress,
-        pool=pool,
-        states=state,
-        policy_training_options=policy_training_options
+        progress = progress,
+        pool = pool,
+        states = state,
+        policy_training_options = policy_training_options,
     )
 end
 
-function workers_loop(  
+function workers_loop(
     state_variables_builder::Function,
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
     inputs,
-    policy_training_options::PolicyTrainingOptions
+    policy_training_options::PolicyTrainingOptions,
 )
     worker = JQM.Worker()
     while true

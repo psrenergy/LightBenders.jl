@@ -18,26 +18,32 @@ struct RiskNeutral <: AbstractRiskMeasure end
 CVaR risk measure, the risk measure is a convex combination of the expected value and the CVaR.
 
 # Fields
-- `alpha::Float64`: The confidence level for the CVaR
-- `lambda::Float64`: The weight of the CVaR in the convex combination
+
+  - `alpha::Float64`: The confidence level for the CVaR
+  - `lambda::Float64`: The weight of the CVaR in the convex combination
 
 The convex combination is expressed as:
+
 ```math
 \\begin{equation}
     (1 - \\lambda) \\text{Expected Value} + \\lambda \\text{CVaR}_{\\alpha}
 \\end{equation}
 ```
 
-Example: 
+Example:
+
 ```julia
-cvar_options = CVaROptions(alpha=0.95, lambda=0.5)
+cvar_options = CVaROptions(alpha = 0.95, lambda = 0.5)
 ```
+
 will give a risk measure that is a convex combination of the expected value and the CVaR with a confidence level of 0.95 and a weight of 0.5.
+
 ```math
 \\begin{equation}
     0.5 \\text{Expected Value} + 0.5 \\text{CVaR}_{0.95}
 \\end{equation}
 ```
+
 Where the CVaR of 95% is approximatelly equal to the mean of the 5% worst cases.
 
 If we choose `lambda=0.0` the risk measure will be the expected value. If we choose `lambda=1.0` the risk measure will be the CVaR.
@@ -46,7 +52,7 @@ If we choose `alpha=0.0` the CVaR will be equivalent to the expected value. If w
 mutable struct CVaR <: AbstractRiskMeasure
     alpha::Float64
     lambda::Float64
-    function CVaR(;alpha::Real=0.95, lambda::Real=0.5)::CVaR
+    function CVaR(; alpha::Real = 0.95, lambda::Real = 0.5)::CVaR
         num_errors = 0
         if alpha < 0.0 || alpha > 1.0
             @error("alpha must be between 0 and 1.")
@@ -64,9 +70,9 @@ mutable struct CVaR <: AbstractRiskMeasure
 end
 
 function build_cvar_weights(
-    objectives::Vector{Float64}, 
-    alpha::Real, 
-    lambda::Real, 
+    objectives::Vector{Float64},
+    alpha::Real,
+    lambda::Real,
 )::Vector{Float64}
     N = length(objectives)
     κ = ceil(alpha * N)
