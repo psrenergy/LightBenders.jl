@@ -3,7 +3,7 @@ function serial_benders_train(;
     first_stage_builder::Function,
     second_stage_builder::Function,
     second_stage_modifier::Function,
-    inputs=nothing,
+    inputs = nothing,
     policy_training_options::PolicyTrainingOptions,
 )
     validate_benders_training_options(policy_training_options)
@@ -41,7 +41,8 @@ function serial_benders_train(;
             # Store the opening cut in a temporary cut pool
             store_cut!(local_pools, coefs, state, rhs, obj)
             future_cost = get_future_cost(second_stage_model, policy_training_options)
-            progress.UB[progress.current_iteration] += (JuMP.objective_value(second_stage_model) - future_cost) / policy_training_options.num_scenarios
+            progress.UB[progress.current_iteration] +=
+                (JuMP.objective_value(second_stage_model) - future_cost) / policy_training_options.num_scenarios
         end
         # Store the (stage, scenario) cut(s) in a persitent pool.
         # Cuts here can be following the single cut strategy or 
@@ -59,10 +60,10 @@ function serial_benders_train(;
         end
     end
     return Policy(
-        progress=progress,
-        pool=pool,
-        states=state,
-        policy_training_options=policy_training_options
+        progress = progress,
+        pool = pool,
+        states = state,
+        policy_training_options = policy_training_options,
     )
 end
 

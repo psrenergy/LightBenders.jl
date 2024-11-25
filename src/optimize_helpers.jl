@@ -14,7 +14,7 @@ function print_conflict_to_file(model::JuMP.Model, filename::String = "infeasibl
             write(io, "IIS found\n")
             for cref in all_constraints(model, include_variable_in_set_constraints = true)
                 if MOI.get(model, MOI.ConstraintConflictStatus(), cref) == MOI.IN_CONFLICT
-                    println(io,  cref)
+                    println(io, cref)
                 end
             end
         end

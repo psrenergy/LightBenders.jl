@@ -55,20 +55,23 @@ function start_iteration!(progress::BendersTrainingIterationsLog)
     push!(progress.LB, 0.0)
     push!(progress.UB, 0.0)
     progress.current_iteration += 1
+    return nothing
 end
 
 function report_current_bounds(progress::BendersTrainingIterationsLog)
-    next(progress.progress_table, 
+    next(progress.progress_table,
         [
             progress.current_iteration,
             current_lower_bound(progress),
             current_upper_bound(progress),
             current_gap(progress),
             time() - progress.start_time,
-        ]
+        ],
     )
+    return nothing
 end
 
 function finish_training!(progress::BendersTrainingIterationsLog)
     finalize(progress.progress_table)
+    return nothing
 end
