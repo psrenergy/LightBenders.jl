@@ -52,7 +52,7 @@ end
 
 function treat_termination_status(model::JuMP.Model, options::SimulationOptions, t::Int, s::Int)
     file_name = "model_stage_$(t)_scenario_$(s)"
-    info_msg = "Simulation model (second stage), stage $t, scenario $s finished with termination status: $(termination_status(model))"
+    info_msg = "Simulation model stage $t, scenario $s finished with termination status: $(termination_status(model))"
     treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
