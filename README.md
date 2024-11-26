@@ -6,16 +6,15 @@
 
 ## Introduction
 
-**LightBenders** is a Julia package that provides a flexible and efficient implementation of the two-stage Benders decomposition method. Designed for solving large-scale optimization problems, **LightBenders** is especially suited for problems where decisions are divided into a main (first-stage) problem and a set of scenario-dependent (second-stage) problems.
+LightBenders is a Julia package that provides a flexible and efficient implementation of the two-stage Benders decomposition method. Designed for solving large-scale optimization problems, LightBenders is especially suited for problems where decisions are divided into a main (first-stage) problem and a set of scenario-dependent (second-stage) problems.
 
-With support for both serialized and parallel processing of second-stage scenarios, **LightBenders** allows users to efficiently tackle computationally demanding problems. By leveraging Julia's high-performance capabilities and parallel computing features, the package offers robust performance for solving a wide range of applications, including energy systems, logistics, and supply chain optimization.
+With support for both serialized and parallel processing of second-stage scenarios, LightBenders allows users to efficiently tackle computationally demanding problems. By leveraging Julia's high-performance capabilities and parallel computing features, the package offers robust performance for solving a wide range of applications, including energy systems, logistics, and supply chain optimization.
 
 ### Key Features
 - Generic Implementation: Fully customizable for diverse optimization models.
 - Scenario Management: Scenarios are handled either sequentially or in parallel, enabling scalability for large instances.
 - User-Friendly Interface: Seamlessly integrates with Julia's optimization ecosystem, such as JuMP.
-- Parallel Computing Support: Efficiently utilize multiple cores or distributed systems for solving second-stage problems in parallel.
-
+- Parallel Computing Support: Efficiently utilize multiple cores or distributed systems to solve second-stage problems in parallel.
 
 **LightBenders** is ideal for researchers and practitioners looking to adopt a modular and high-performance approach to Benders decomposition in Julia.
 
@@ -28,6 +27,7 @@ julia> ] add LightBenders
 ```
 
 ### Example: Newsvendor Model
+
 ```julia
 using LightBenders
 using JuMP
@@ -41,6 +41,7 @@ Base.@kwdef mutable struct Inputs
     max_storage::Int
     demand::Vector{<:Real}
 end
+
 function state_variables_builder(inputs)
     model = Model(HiGHS.Optimizer)
     set_silent(model)
@@ -50,6 +51,7 @@ function state_variables_builder(inputs)
     LightBenders.set_state(sp, :bought, bought)
     return sp
 end
+
 function first_stage_builder(sp, inputs)
     bought = sp[:bought]
 
@@ -57,6 +59,7 @@ function first_stage_builder(sp, inputs)
     @objective(sp, Min, bought * inputs.buy_price)
     return sp
 end
+
 function second_stage_builder(sp, inputs)
     bought = sp[:bought]
 
@@ -68,6 +71,7 @@ function second_stage_builder(sp, inputs)
     @objective(sp, Min, -sold * inputs.sell_price - returned * inputs.return_price)
     return sp
 end
+
 function second_stage_modifier(sp, inputs, s)
     dem = sp[:dem]
     JuMP.set_parameter_value(dem, inputs.demand[s])
@@ -87,6 +91,7 @@ policy_training_options = LightBenders.PolicyTrainingOptions(;
     ),
     cut_strategy = LightBenders.CutStrategy.MultiCut,
 )
+
 policy = LightBenders.train(;
     state_variables_builder,
     first_stage_builder,
@@ -95,6 +100,7 @@ policy = LightBenders.train(;
     inputs = inputs,
     policy_training_options,
 )
+
 results = LightBenders.simulate(;
     state_variables_builder,
     first_stage_builder,
