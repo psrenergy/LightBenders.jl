@@ -49,6 +49,7 @@ function state_variables_builder(inputs)
     # state variable
     @variable(sp, 0 <= bought <= inputs.max_storage)
     LightBenders.set_state(sp, :bought, bought)
+
     return sp
 end
 
@@ -57,6 +58,7 @@ function first_stage_builder(sp, inputs)
 
     @constraint(sp, bought <= inputs.max_storage)
     @objective(sp, Min, bought * inputs.buy_price)
+
     return sp
 end
 
@@ -69,6 +71,7 @@ function second_stage_builder(sp, inputs)
     @constraint(sp, sold_dem_con, sold <= dem)
     @constraint(sp, balance, sold + returned <= bought)
     @objective(sp, Min, -sold * inputs.sell_price - returned * inputs.return_price)
+
     return sp
 end
 
