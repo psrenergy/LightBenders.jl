@@ -16,7 +16,7 @@ With support for both serialized and parallel processing of second-stage scenari
 - User-Friendly Interface: Seamlessly integrates with Julia's optimization ecosystem, such as JuMP.
 - Parallel Computing Support: Efficiently utilize multiple cores or distributed systems to solve second-stage problems in parallel.
 
-**LightBenders** is ideal for researchers and practitioners looking to adopt a modular and high-performance approach to Benders decomposition in Julia.
+LightBenders is ideal for researchers and practitioners looking to adopt a modular and high-performance approach to Benders decomposition in Julia.
 
 ## Getting Started
 
