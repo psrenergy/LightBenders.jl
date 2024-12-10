@@ -40,10 +40,10 @@ function serial_benders_train(;
             coefs, rhs, obj = get_cut(second_stage_model, state)
             # Store the opening cut in a temporary cut pool
             store_cut!(local_pools, coefs, state, rhs, obj)
-            future_cost = get_future_cost(second_stage_model, policy_training_options)
-            progress.UB[progress.current_iteration] +=
-                (JuMP.objective_value(second_stage_model) - future_cost) / policy_training_options.num_scenarios
         end
+        progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
+            policy_training_options, local_pools.obj
+        )
         # Store the (stage, scenario) cut(s) in a persitent pool.
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
