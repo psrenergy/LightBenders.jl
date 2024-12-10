@@ -37,7 +37,7 @@ function get_future_cost(model::JuMP.Model, policy_training_options)::Float64
     if policy_training_options.cut_strategy == CutStrategy.SingleCut
         return LightBenders.get_single_cut_future_cost(model)
     else
-        return LightBenders.get_multi_cut_future_cost(model)
+        return LightBenders.get_multi_cut_future_cost(model, policy_training_options)
     end
 end
 

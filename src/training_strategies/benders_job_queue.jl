@@ -16,7 +16,6 @@ mutable struct SecondStageMessage
 end
 
 mutable struct SecondStageAnswer
-    UB::Float64
     coefs
     rhs
     obj
@@ -93,7 +92,6 @@ function job_queue_benders_train(;
                 if !isnothing(job_answer)
                     message = JQM.get_message(job_answer)
                     if message isa SecondStageAnswer
-                        progress.UB[progress.current_iteration] += message.UB
                         store_cut!(
                             local_pools,
                             message.coefs,
@@ -111,6 +109,9 @@ function job_queue_benders_train(;
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
         store_cut!(pool, local_pools, state, policy_training_options, t)
+        progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
+            policy_training_options, local_pools.obj
+        )
         report_current_bounds(progress)
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
@@ -224,10 +225,7 @@ function worker_second_stage(
     optimize_with_retry(second_stage_model)
     treat_termination_status(second_stage_model, policy_training_options, t, scenario, iteration)
     coefs, rhs, obj = get_cut(second_stage_model, state)
-    future_cost = get_future_cost(second_stage_model, policy_training_options)
-    UB = (JuMP.objective_value(second_stage_model) - future_cost) / policy_training_options.num_scenarios
     return SecondStageAnswer(
-        UB,
         coefs,
         rhs,
         obj,
