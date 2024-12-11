@@ -54,8 +54,7 @@ function serial_benders_train(;
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result)
-            finish_training!(progress)
-            println(results_message(convergence_result))
+            finish_training!(progress, convergence_result)
             break
         end
     end

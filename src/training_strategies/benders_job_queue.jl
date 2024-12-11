@@ -116,8 +116,7 @@ function job_queue_benders_train(;
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result)
-            println(results_message(convergence_result))
-            finish_training!(progress)
+            finish_training!(progress, convergence_result)
             JQM.send_termination_message()
             break
         end

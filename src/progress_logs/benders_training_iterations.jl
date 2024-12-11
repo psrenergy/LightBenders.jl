@@ -7,15 +7,14 @@ Base.@kwdef mutable struct BendersTrainingIterationsLog <: AbstractProgressLog
 end
 
 function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOptions)
-    println(" ")
-    println("Benders Training")
-    println(" ")
-    println("Training options:")
-    println("Number of scenarios: ", policy_training_options.num_scenarios)
-    println("Cut strategy: ", policy_training_options.cut_strategy)
-    println("Risk measure: ", policy_training_options.risk_measure)
-    println("Stopping rule: ", policy_training_options.stopping_rule)
-    # TODO add more prints
+    @info(" ")
+    @info("Benders Training")
+    @info(" ")
+    @info("Training options:")
+    @info("Number of scenarios: ", policy_training_options.num_scenarios)
+    @info("Cut strategy: ", policy_training_options.cut_strategy)
+    @info("Risk measure: ", policy_training_options.risk_measure)
+    @info("Stopping rule: ", policy_training_options.stopping_rule)
 
     progress_table = ProgressTable(
         header = ["Iteration", "Lower bound", "Upper bound", "Gap", "Time [s]"],
@@ -70,7 +69,11 @@ function report_current_bounds(progress::BendersTrainingIterationsLog)
     return nothing
 end
 
-function finish_training!(progress::BendersTrainingIterationsLog)
+function finish_training!(
+    progress::BendersTrainingIterationsLog,
+    convergence_result::ConvergenceResult,    
+)
     finalize(progress.progress_table)
+    @info(results_message(convergence_result))
     return nothing
 end
