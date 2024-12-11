@@ -115,10 +115,22 @@ function add_all_cuts!(model::JuMP.Model, pool::CutPoolMultiCut, policy_training
     return nothing
 end
 
-function get_multi_cut_future_cost(model::JuMP.Model)::Float64
+function get_multi_cut_future_cost(model::JuMP.Model, policy_training_options)::Float64
     if !haskey(model, :epi_multi_cut)
         return 0.0
     end
-    alphas = model[:epi_multi_cut]::Vector{JuMP.VariableRef}
-    return mean(JuMP.value.(alphas))
+    alphas = JuMP.value.(model[:epi_multi_cut])
+    if policy_training_options.risk_measure isa RiskNeutral
+        return mean(alphas)
+    elseif policy_training_options.risk_measure isa CVaR
+        discount_rate_multiplier = (1.0 - policy_training_options.discount_rate)
+        z_explicit_cvar = JuMP.value(model[:z_explicit_cvar])
+        delta_explicit_cvar = JuMP.value.(model[:delta_explicit_cvar])
+        fcf = z_explicit_cvar * discount_rate_multiplier * (policy_training_options.risk_measure.lambda)
+        for scen in 1:policy_training_options.num_scenarios
+            fcf += alphas[scen] * discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) / policy_training_options.num_scenarios
+            fcf += delta_explicit_cvar[scen] * discount_rate_multiplier * (policy_training_options.risk_measure.lambda) / ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_scenarios)
+        end
+        return fcf
+    end
 end
