@@ -44,9 +44,6 @@ function save_benders_results!(
     if t == 1
         model_dict = model.obj_dict
         for (name, obj) in model_dict
-            if !(obj isa Union{JuMP.VariableRef, Array{JuMP.VariableRef}, JuMP.AffExpr, Array{JuMP.AffExpr}})
-                continue
-            end
             obj_value = get_value(obj)
             for s in 1:num_scenarios
                 results[string(name), s] = obj_value
@@ -55,9 +52,6 @@ function save_benders_results!(
     elseif t == 2
         model_dict = model.obj_dict
         for (name, obj) in model_dict
-            if !(obj isa Union{JuMP.VariableRef, Array{JuMP.VariableRef}, JuMP.AffExpr, Array{JuMP.AffExpr}})
-                continue
-            end
             obj_value = get_value(obj)
             results[string(name), scen] = obj_value
         end
