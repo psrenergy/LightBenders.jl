@@ -26,11 +26,11 @@ function get_expression_value(jump_array::JuMP.AffExpr)
     return JuMP.value(jump_array)
 end
 
-function get_value(jump_array::Union{JuMP.VariableRef, Array{JuMP.VariableRef}})
+function get_value(jump_array::JuMP.VariableRef)
     return get_variable_value(jump_array)
 end
 
-function get_value(jump_array::Union{JuMP.AffExpr, Array{JuMP.AffExpr}})
+function get_value(jump_array::JuMP.AffExpr)
     return get_expression_value(jump_array)
 end
 
@@ -44,7 +44,7 @@ function save_benders_results!(
     if t == 1
         model_dict = model.obj_dict
         for (name, obj) in model_dict
-            obj_value = get_value(obj)
+            obj_value = get_value.(obj)
             for s in 1:num_scenarios
                 results[string(name), s] = obj_value
             end
@@ -52,7 +52,7 @@ function save_benders_results!(
     elseif t == 2
         model_dict = model.obj_dict
         for (name, obj) in model_dict
-            obj_value = get_value(obj)
+            obj_value = get_value.(obj)
             results[string(name), scen] = obj_value
         end
     end
