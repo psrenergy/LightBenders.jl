@@ -24,7 +24,7 @@ function convergence_test(
     progress,
     rule::IterationLimit,
 )
-    has_converged = progress.curent_iteration >= rule.max_iterations
+    has_converged = progress.current_iteration >= rule.max_iterations
     return ConvergenceResult(has_converged, "converged with $rule.")
 end
 
