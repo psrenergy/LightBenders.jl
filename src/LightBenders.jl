@@ -51,4 +51,7 @@ include("deterministic_equivalent/results.jl")
 # Helpers
 include("optimize_helpers.jl")
 
+# Utilities
+include("utils.jl")
+
 end # module LightBenders

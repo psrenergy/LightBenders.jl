@@ -1,14 +1,3 @@
-mutable struct FirstStageMessage
-    pool
-    iteration::Int
-end
-
-mutable struct FirstStageAnswer
-    state
-    LB::Float64
-    UB::Float64
-end
-
 mutable struct SecondStageMessage
     iteration::Int
     scenario::Int
@@ -19,6 +8,7 @@ mutable struct SecondStageAnswer
     coefs
     rhs
     obj
+    scenario::Int
 end
 
 all_jobs_done(controller) = JQM.is_job_queue_empty(controller) && !JQM.any_pending_jobs(controller)
@@ -37,10 +27,11 @@ function job_queue_benders_train(;
     validate_benders_training_options(policy_training_options)
 
     if JQM.is_worker_process()
+        # second stage model
+        state_variables_model = state_variables_builder(inputs)
+        second_stage_model = second_stage_builder(state_variables_model, inputs)
         workers_loop(
-            state_variables_builder,
-            first_stage_builder,
-            second_stage_builder,
+            second_stage_model,
             second_stage_modifier,
             inputs,
             policy_training_options,
@@ -52,30 +43,28 @@ function job_queue_benders_train(;
     controller = JQM.Controller(JQM.num_workers())
     progress = BendersTrainingIterationsLog(policy_training_options)
     pool = initialize_cut_pool(policy_training_options)
+    iteration_pool = initialize_cut_pool(policy_training_options)
     state = Float64[] # State variables are only stored for the first stage that does not vary per scenario
     state_cache = StateCache()
+
+    # first stage model
+    state_variables_model = state_variables_builder(inputs)
+    first_stage_model = first_stage_builder(state_variables_model, inputs)
+    create_epigraph_variables!(first_stage_model, policy_training_options)
 
     while true
         start_iteration!(progress)
         t = 1
-        message = FirstStageMessage(pool, progress.current_iteration)
-        JQM.add_job_to_queue!(controller, message)
-        JQM.send_jobs_to_any_available_workers(controller)
-        # Wait for the answer
-        while true
-            job_answer = JQM.check_for_job_answers(controller)
-            if !isnothing(job_answer)
-                message = JQM.get_message(job_answer)
-                if message isa FirstStageAnswer
-                    state = message.state
-                    progress.LB[progress.current_iteration] += message.LB
-                    progress.UB[progress.current_iteration] += message.UB
-                    break
-                else
-                    error("Unexpected message type received from worker")
-                end
-            end
-        end
+
+        add_all_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
+        store_retry_data(first_stage_model, policy_training_options)
+        optimize_with_retry(first_stage_model)
+        treat_termination_status(first_stage_model, policy_training_options, t, progress.current_iteration)
+        state = get_state(first_stage_model)
+        future_cost = get_future_cost(first_stage_model, policy_training_options)
+        progress.LB[progress.current_iteration] += JuMP.objective_value(first_stage_model)
+        progress.UB[progress.current_iteration] += JuMP.objective_value(first_stage_model) - future_cost
+        iteration_pool = initialize_cut_pool(policy_training_options)
 
         t = 2
         local_pools = LocalCutPool()
@@ -83,7 +72,7 @@ function job_queue_benders_train(;
             message = SecondStageMessage(progress.current_iteration, s, state)
             JQM.add_job_to_queue!(controller, message)
         end
-        while !all_jobs_done(controller)
+        while JQM.any_jobs_left(controller)
             if !JQM.is_job_queue_empty(controller)
                 JQM.send_jobs_to_any_available_workers(controller)
             end
@@ -109,6 +98,7 @@ function job_queue_benders_train(;
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
         store_cut!(pool, local_pools, state, policy_training_options, t)
+        store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj
         )
@@ -122,6 +112,7 @@ function job_queue_benders_train(;
         end
     end
     JQM.mpi_barrier()
+
     return Policy(
         progress = progress,
         pool = pool,
@@ -131,9 +122,7 @@ function job_queue_benders_train(;
 end
 
 function workers_loop(
-    state_variables_builder::Function,
-    first_stage_builder::Function,
-    second_stage_builder::Function,
+    second_stage_model::JuMP.Model,
     second_stage_modifier::Function,
     inputs,
     policy_training_options::PolicyTrainingOptions,
@@ -146,66 +135,22 @@ function workers_loop(
         if message == JQM.TerminationMessage()
             break
         end
-        if message isa FirstStageMessage
-            answer = worker_first_stage(
-                state_variables_builder,
-                first_stage_builder,
-                second_stage_builder,
-                second_stage_modifier,
-                inputs,
-                policy_training_options,
-                message,
-            )
-            JQM.send_job_answer_to_controller(worker, answer)
-        elseif message isa SecondStageMessage
-            answer = worker_second_stage(
-                state_variables_builder,
-                first_stage_builder,
-                second_stage_builder,
-                second_stage_modifier,
-                inputs,
-                policy_training_options,
-                message,
-            )
-            JQM.send_job_answer_to_controller(worker, answer)
-        end
+       
+        answer = worker_second_stage(
+            second_stage_model,
+            second_stage_modifier,
+            inputs,
+            policy_training_options,
+            message,
+        )
+        JQM.send_job_answer_to_controller(worker, answer)
+
     end
     return nothing
 end
 
-function worker_first_stage(
-    state_variables_builder,
-    first_stage_builder,
-    second_stage_builder,
-    second_stage_modifier,
-    inputs,
-    policy_training_options,
-    message,
-)
-    pool = message.pool
-    iteration = message.iteration
-    t = 1
-    state_variables_model = state_variables_builder(inputs)
-    first_stage_model = first_stage_builder(state_variables_model, inputs)
-    add_all_cuts!(first_stage_model, pool[t], policy_training_options)
-    store_retry_data(first_stage_model, policy_training_options)
-    optimize_with_retry(first_stage_model)
-    treat_termination_status(first_stage_model, policy_training_options, t, iteration)
-    state = get_state(first_stage_model)
-    future_cost = get_future_cost(first_stage_model, policy_training_options)
-    LB = JuMP.objective_value(first_stage_model)
-    UB = JuMP.objective_value(first_stage_model) - future_cost
-    return FirstStageAnswer(
-        state,
-        LB,
-        UB,
-    )
-end
-
 function worker_second_stage(
-    state_variables_builder,
-    first_stage_builder,
-    second_stage_builder,
+    second_stage_model::JuMP.Model,
     second_stage_modifier,
     inputs,
     policy_training_options,
@@ -216,17 +161,18 @@ function worker_second_stage(
     iteration = message.iteration
     state = message.state
     # We could only build the model once and modify it for each scenario
-    state_variables_model = state_variables_builder(inputs)
-    second_stage_model = second_stage_builder(state_variables_model, inputs)
+
     set_state(second_stage_model, state)
     second_stage_modifier(second_stage_model, inputs, scenario)
     store_retry_data(second_stage_model, policy_training_options)
     optimize_with_retry(second_stage_model)
     treat_termination_status(second_stage_model, policy_training_options, t, scenario, iteration)
     coefs, rhs, obj = get_cut(second_stage_model, state)
+
     return SecondStageAnswer(
         coefs,
         rhs,
         obj,
+        scenario,
     )
 end

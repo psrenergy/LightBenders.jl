@@ -39,7 +39,11 @@ function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training
         epi_multi_cut = JuMP.@variable(model, lower_bound = policy_training_options.lower_bound)
         alphas[scen] = epi_multi_cut
     end
-    return alphas
+    if policy_training_options.risk_measure isa CVaR
+        JuMP.@variable(model, z_explicit_cvar)
+        JuMP.@variable(model, delta_explicit_cvar[scen = 1:policy_training_options.num_scenarios] >= 0)
+    end
+    return nothing
 end
 
 function add_multi_cut_risk_neutral_cuts!(
@@ -68,14 +72,14 @@ function add_multi_cut_cvar_cuts!(
     policy_training_options,
 )
     discount_rate_multiplier = (1.0 - policy_training_options.discount_rate)
-    JuMP.@variable(model, z_explicit_cvar)
+    z_explicit_cvar = model[:z_explicit_cvar]
+    delta_explicit_cvar = model[:delta_explicit_cvar]
     # λ * z
     JuMP.set_objective_coefficient(
         model,
         z_explicit_cvar,
         discount_rate_multiplier * (policy_training_options.risk_measure.lambda),
     )
-    JuMP.@variable(model, delta_explicit_cvar[scen = 1:policy_training_options.num_scenarios] >= 0)
     for scen in 1:policy_training_options.num_scenarios
         # (1 - λ)/L * sum(alphas) 
         JuMP.set_objective_coefficient(
@@ -101,12 +105,7 @@ function add_multi_cut_cvar_cuts!(
 end
 
 function add_all_cuts!(model::JuMP.Model, pool::CutPoolMultiCut, policy_training_options)
-    if isempty(pool.cuts)
-        return nothing
-    end
-    # Add the epigraph variables. These variables must be common to every risk adjusted implementation.
-    alphas = create_epigraph_multi_cut_variables!(model, policy_training_options)
-
+    alphas = model[:epi_multi_cut]
     if isa(policy_training_options.risk_measure, RiskNeutral)
         add_multi_cut_risk_neutral_cuts!(model, alphas, pool, policy_training_options)
     elseif isa(policy_training_options.risk_measure, CVaR)

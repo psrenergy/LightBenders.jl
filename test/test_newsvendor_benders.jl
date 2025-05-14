@@ -66,6 +66,10 @@ function newsvendor_benders(;
         ),
         cut_strategy = cut_strategy,
         risk_measure = risk_measure,
+        # debugging_options = LightBenders.DebuggingOptions(;
+        #     logs_dir= joinpath(@__DIR__, "logs"),
+        #     write_lp = true,
+        # ),
     )
 
     policy = LightBenders.train(;
@@ -87,6 +91,10 @@ function newsvendor_benders(;
         simulation_options = LightBenders.SimulationOptions(
             policy_training_options;
             implementation_strategy = LightBenders.BendersSerialSimulation(),
+            # debugging_options = LightBenders.DebuggingOptions(;
+            #     logs_dir= joinpath(@__DIR__, "logs_serial_multi_cut"),
+            #     write_lp = true,
+            # ),
         ),
     )
 

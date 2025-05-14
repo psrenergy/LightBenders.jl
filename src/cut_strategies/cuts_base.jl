@@ -56,7 +56,7 @@ function get_cut(model, states)
         # coefs[i] = JuMP.dual(JuMP.FixRef(cache.variables[i]))
         rhs -= coefs[i] * states[i]
     end
-    return coefs, rhs, obj
+    return truncate_small_numbers.(coefs), truncate_small_numbers(rhs), truncate_small_numbers(obj)
 end
 
 """
@@ -69,4 +69,18 @@ function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::
     cache = model.ext[:state]::StateCache
     cref = @constraint(model, alpha >= rhs + dot(coefs, cache.variables))
     return cref
+end
+
+function create_epigraph_variables!(model::JuMP.Model, policy_training_options)
+    if policy_training_options.cut_strategy == CutStrategy.SingleCut
+        return create_epigraph_single_cut_variables!(model, policy_training_options)
+    elseif policy_training_options.cut_strategy == CutStrategy.MultiCut
+        return create_epigraph_multi_cut_variables!(model, policy_training_options)
+    end
+    error("Not implemented.")
+    return nothing
+end
+
+function number_of_cuts(pool::Nothing)
+    return 0
 end
