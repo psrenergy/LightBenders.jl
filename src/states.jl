@@ -66,7 +66,7 @@ function set_state(model, state)
         append!(state, fill(0.0, length(cache.variables)))
     end
     for i in eachindex(cache.variables)
-        JuMP.fix(cache.variables[i], truncate_small_numbers(state[i]); force = true)
+        JuMP.fix(cache.variables[i], state[i]; force = true)
     end
     return nothing
 end
