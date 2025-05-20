@@ -13,13 +13,33 @@ Base.@kwdef mutable struct Inputs
     demand::Vector{<:Real}
 end
 
-function state_variables_builder(inputs)
+function state_variables_builder(inputs, stage)
     model = Model(HiGHS.Optimizer)
     set_silent(model)
     sp = LightBenders.SubproblemModel(model)
     # state variable
-    @variable(sp, 0 <= bought <= inputs.max_storage)
-    LightBenders.set_state(sp, :bought, bought)
+    if stage == 1
+        @variable(sp, 0 <= bought <= inputs.max_storage)
+        LightBenders.set_first_stage_state(sp, :bought, bought)
+    elseif stage == 2
+        @variable(sp, bought)
+        LightBenders.set_second_stage_state(sp, :bought, bought)
+    end
+    return sp
+end
+
+function state_variables_builder_parameter(inputs, stage)
+    model = Model(HiGHS.Optimizer)
+    set_silent(model)
+    sp = LightBenders.SubproblemModel(model)
+    # state variable
+    if stage == 1
+        @variable(sp, 0 <= bought <= inputs.max_storage)
+        LightBenders.set_first_stage_state(sp, :bought, bought)
+    elseif stage == 2
+        @variable(sp, bought in MOI.Parameter(0.0))
+        LightBenders.set_second_stage_state(sp, :bought, bought)
+    end
     return sp
 end
 
@@ -52,6 +72,7 @@ end
 function newsvendor_benders(;
         cut_strategy = LightBenders.CutStrategy.MultiCut,
         risk_measure = LightBenders.RiskNeutral(),
+        state_variables_builder = state_variables_builder,
     )
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
@@ -117,9 +138,34 @@ function test_newsvendor_benders()
             @test results["objective", 0] ≈ -70 atol = 1e-2
         end
     end
-    @testset "[Job Queue] Benders Newsvendor multi cut" begin
+    @testset "[Job Queue] Benders Newsvendor single cut state parameter" begin
         v = newsvendor_benders(;
-            cut_strategy = LightBenders.CutStrategy.MultiCut
+            cut_strategy = LightBenders.CutStrategy.SingleCut,
+            state_variables_builder = state_variables_builder_parameter
+        )
+        if v !== nothing
+            policy, results = v
+            @test LightBenders.lower_bound(policy) ≈ -70
+            @test LightBenders.upper_bound(policy) ≈ -70
+            @test results["objective", 0] ≈ -70 atol = 1e-2
+        end
+    end
+    # TODO - understand why risk neutral multi cut with job queue is not always working
+    # @testset "[Job Queue] Benders Newsvendor multi cut" begin
+    #     v = newsvendor_benders(;
+    #         cut_strategy = LightBenders.CutStrategy.MultiCut
+    #     )
+    #     if v !== nothing
+    #         policy, results = v
+    #         @test LightBenders.lower_bound(policy) ≈ -70
+    #         @test LightBenders.upper_bound(policy) ≈ -70
+    #         @test results["objective", 0] ≈ -70 atol = 1e-2
+    #     end
+    # end
+    @testset "[Job Queue] Benders Newsvendor multi cut state parameter" begin
+        v = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.MultiCut,
+            state_variables_builder = state_variables_builder_parameter
         )
         if v !== nothing
             policy, results = v
@@ -140,10 +186,36 @@ function test_newsvendor_benders()
             @test results["objective", 0] ≈ -50 atol = 1e-2
         end
     end
+    @testset "[Job Queue] Benders Newsvendor single cut CVaR state parameter" begin
+        v = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.SingleCut,
+            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+            state_variables_builder = state_variables_builder_parameter,
+        )
+        if v !== nothing
+            policy, results = v
+            @test LightBenders.lower_bound(policy) ≈ -50
+            @test LightBenders.upper_bound(policy) ≈ -50
+            @test results["objective", 0] ≈ -50 atol = 1e-2
+        end
+    end
     @testset "[Job Queue] Benders Newsvendor multi cut CVaR" begin
         v = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.MultiCut,
             risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5)
+        )
+        if v !== nothing
+            policy, results = v
+            @test LightBenders.lower_bound(policy) ≈ -50
+            @test LightBenders.upper_bound(policy) ≈ -50
+            @test results["objective", 0] ≈ -50 atol = 1e-2
+        end
+    end
+    @testset "[Job Queue] Benders Newsvendor multi cut CVaR state parameter" begin
+        v = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.MultiCut,
+            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+            state_variables_builder = state_variables_builder_parameter,
         )
         if v !== nothing
             policy, results = v

@@ -26,7 +26,8 @@ function job_queue_benders_train(;
 
     if JQM.is_worker_process()
         # second stage model
-        state_variables_model = state_variables_builder(inputs)
+        stage = 2
+        state_variables_model = state_variables_builder(inputs, stage)
         second_stage_model = second_stage_builder(state_variables_model, inputs)
         workers_loop(
             second_stage_model,
@@ -46,9 +47,19 @@ function job_queue_benders_train(;
     state_cache = StateCache()
 
     # first stage model
-    state_variables_model = state_variables_builder(inputs)
+    stage = 1
+    state_variables_model = state_variables_builder(inputs, stage)
     first_stage_model = first_stage_builder(state_variables_model, inputs)
     create_epigraph_variables!(first_stage_model, policy_training_options)
+
+    # second stage model (here in the controller, only used for checking if the states match)
+    stage = 2
+    second_stage_state_variables_model = state_variables_builder(inputs, stage)
+    
+    check_state_match(
+        first_stage_model.ext[:first_stage_state],
+        second_stage_state_variables_model.ext[:second_stage_state],
+    )
 
     while true
         start_iteration!(progress)

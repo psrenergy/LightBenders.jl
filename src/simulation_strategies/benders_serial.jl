@@ -16,7 +16,8 @@ function serial_benders_simulate(;
     # first stage
     @info("Simulating first stage...")
 
-    state_variables_model = state_variables_builder(inputs)
+    stage = 1
+    state_variables_model = state_variables_builder(inputs, stage)
     model = first_stage_builder(state_variables_model, inputs)
     create_epigraph_variables!(model, policy.policy_training_options)
     add_all_cuts!(model, policy.pool[1], policy.policy_training_options)
@@ -41,7 +42,8 @@ function serial_benders_simulate(;
         error("State handling not implemented.")
     end
 
-    state_variables_model = state_variables_builder(inputs)
+    stage = 2
+    state_variables_model = state_variables_builder(inputs, stage)
     model = second_stage_builder(state_variables_model, inputs)
     set_state(model, state)
 

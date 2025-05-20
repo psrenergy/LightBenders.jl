@@ -4,7 +4,8 @@
 A constructor of JuMP Models with an explicit place to all caches that must exist in the model.
 """
 function SubproblemModel(model::JuMP.Model)
-    model.ext[:state] = StateCache()
+    model.ext[:first_stage_state] = StateCache()
+    model.ext[:second_stage_state] = StateCache()
     return model
 end
 

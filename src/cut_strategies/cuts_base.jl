@@ -47,12 +47,16 @@ end
 Return the coefficients, rhs and obj of a calculated cut.
 """
 function get_cut(model, states)
-    cache = model.ext[:state]::StateCache
+    cache = model.ext[:second_stage_state]::StateCache
     coefs = Vector{Float64}(undef, length(cache.variables))
     obj = JuMP.objective_value(model)
     rhs = obj
     for i in eachindex(cache.variables)
-        coefs[i] = JuMP.reduced_cost(cache.variables[i])
+        if JuMP.is_parameter(cache.variables[i])
+            coefs[i] = JuMP.dual(ParameterRef(cache.variables[i]))
+        else
+            coefs[i] = JuMP.reduced_cost(cache.variables[i])
+        end
         # coefs[i] = JuMP.dual(JuMP.FixRef(cache.variables[i]))
         rhs -= coefs[i] * states[i]
     end
@@ -66,7 +70,7 @@ Add a cut to a Model and return the constraint reference.
 """
 function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T) where {T <: Real}
     alpha = epigraph_variable
-    cache = model.ext[:state]::StateCache
+    cache = model.ext[:first_stage_state]::StateCache
     cref = @constraint(model, alpha >= rhs + dot(coefs, cache.variables))
     return cref
 end

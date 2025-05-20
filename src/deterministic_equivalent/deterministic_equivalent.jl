@@ -14,9 +14,10 @@ function deterministic_equivalent(;
     num_scenarios = options.num_scenarios
     DeterministicEquivalentLog(num_scenarios)
 
-    model = state_variables_builder(inputs)
+    stage = 1
+    model = state_variables_builder(inputs, stage)
     first_stage_builder(model, inputs)
-    subproblem = state_variables_builder(inputs)
+    subproblem = state_variables_builder(inputs, stage)
     second_stage_builder(subproblem, inputs)
     for scen in 1:num_scenarios
         second_stage_modifier(subproblem, inputs, scen)
@@ -83,7 +84,7 @@ function copy_and_replace_variables(
 end
 
 function is_state_variable(var, model::JuMP.Model)
-    state = model.ext[:state]
+    state = model.ext[:first_stage_state]
     for idx in eachindex(state.variables)
         if var == state.variables[idx]
             return true
@@ -93,7 +94,7 @@ function is_state_variable(var, model::JuMP.Model)
 end
 
 function num_state_variables(model::JuMP.Model)
-    return length(model.ext[:state].variables)
+    return length(model.ext[:first_stage_state].variables)
 end
 
 function all_variables_but_state(model::JuMP.Model)
@@ -120,8 +121,8 @@ function push_model!(
         JuMP.set_name(dest, string(name, "_scen#", scenario))
     end
     # push state variables
-    model_state = model.ext[:state]
-    subproblem_state = subproblem.ext[:state]
+    model_state = model.ext[:first_stage_state]
+    subproblem_state = subproblem.ext[:first_stage_state]
     for idx in eachindex(model_state.variables)
         # since this is a two stage model
         # state variables do not change
