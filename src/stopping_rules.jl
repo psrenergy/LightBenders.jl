@@ -22,6 +22,19 @@ end
 
 function convergence_test(
     progress,
+    rules::Vector{<:AbstractStoppingRule},
+)
+    for rule in rules
+        result = convergence_test(progress, rule)
+        if has_converged(result)
+            return result
+        end
+    end
+    return ConvergenceResult(false, "not converged.")
+end
+
+function convergence_test(
+    progress,
     rule::IterationLimit,
 )
     has_converged = progress.current_iteration >= rule.max_iterations

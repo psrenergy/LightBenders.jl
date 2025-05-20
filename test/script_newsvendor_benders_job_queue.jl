@@ -5,8 +5,6 @@ using LightBenders
 using JuMP
 using HiGHS
 
-LightBenders.JobQueueMPI.enable_debug_messages()
-
 Base.@kwdef mutable struct Inputs
     buy_price::Real
     sell_price::Real
@@ -62,10 +60,10 @@ function newsvendor_benders(;
         num_scenarios = num_scenarios,
         lower_bound = -1e6,
         implementation_strategy = LightBenders.JobQueueTraining(),
-        stopping_rule = LightBenders.GapWithMinimumNumberOfIterations(;
+        stopping_rule = [LightBenders.GapWithMinimumNumberOfIterations(;
             abstol = 1e-1,
             min_iterations = 2,
-        ),
+        )],
         cut_strategy = cut_strategy,
         risk_measure = risk_measure,
         # debugging_options = LightBenders.DebuggingOptions(;

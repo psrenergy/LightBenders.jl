@@ -11,8 +11,6 @@ mutable struct SecondStageAnswer
     scenario::Int
 end
 
-all_jobs_done(controller) = JQM.is_job_queue_empty(controller) && !JQM.any_pending_jobs(controller)
-
 function job_queue_benders_train(;
     state_variables_builder::Function,
     first_stage_builder::Function,

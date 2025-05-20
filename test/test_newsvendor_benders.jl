@@ -60,10 +60,10 @@ function newsvendor_benders(;
         num_scenarios = num_scenarios,
         lower_bound = -1e6,
         implementation_strategy = LightBenders.SerialTraining(),
-        stopping_rule = LightBenders.GapWithMinimumNumberOfIterations(;
+        stopping_rule = [LightBenders.GapWithMinimumNumberOfIterations(;
             abstol = 1e-1,
             min_iterations = 2,
-        ),
+        )],
         cut_strategy = cut_strategy,
         risk_measure = risk_measure,
         # debugging_options = LightBenders.DebuggingOptions(;
