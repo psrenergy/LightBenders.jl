@@ -60,6 +60,8 @@ function serial_benders_train(;
         # the multi cut strategy
 
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
+        # Reset the cut pool for the next iteration
+        reset_cuts!(first_stage_model, iteration_pool[1])
 
         # check convergence
         report_current_bounds(progress)

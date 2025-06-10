@@ -158,7 +158,7 @@ end
 
 function reset_cuts!(model::JuMP.Model, pool::CutPoolMultiCut)
     for l in 1:length(pool.cuts)
-        reset_cuts!(model, pool[l])
+        reset_cuts!(model, pool.cuts[l])
     end
     return nothing
 end
