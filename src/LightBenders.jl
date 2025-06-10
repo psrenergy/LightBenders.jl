@@ -15,6 +15,7 @@ include("results.jl")
 include("states.jl")
 include("risk_measures.jl")
 include("options_retry.jl")
+include("options_cut_relaxation.jl")
 
 # Cut strategy implementations
 include("cut_strategies/cuts_base.jl")

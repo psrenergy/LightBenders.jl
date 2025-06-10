@@ -13,6 +13,7 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
     @info("Training options:")
     @info("Number of scenarios: ", policy_training_options.num_scenarios)
     @info("Cut strategy: ", policy_training_options.cut_strategy)
+    @info("Cut relaxation: ", policy_training_options.cut_relaxation.active)
     @info("Risk measure: ", policy_training_options.risk_measure)
     @info("Stopping rule: ", policy_training_options.stopping_rule)
 

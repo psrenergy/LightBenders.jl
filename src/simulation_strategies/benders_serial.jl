@@ -19,7 +19,7 @@ function serial_benders_simulate(;
     stage = 1
     state_variables_model = state_variables_builder(inputs, stage)
     model = first_stage_builder(state_variables_model, inputs)
-    create_epigraph_variables!(model, policy.policy_training_options)
+    create_epigraph_variables!(model, policy.pool[1], policy.policy_training_options)
     add_all_cuts!(model, policy.pool[1], policy.policy_training_options)
 
     store_retry_data(model, simulation_options)

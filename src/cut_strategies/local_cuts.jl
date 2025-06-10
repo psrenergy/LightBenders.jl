@@ -9,6 +9,16 @@ Base.@kwdef mutable struct LocalCutPool <: AbstractCutPool
     state::Vector{Vector{Float64}} = Vector{Float64}[]
     rhs::Vector{Float64} = Float64[]
     obj::Vector{Float64} = Float64[]
+    manager::CutRelaxationData
+end
+
+function LocalCutPool(options)
+    manager = CutRelaxationData(options.cut_relaxation)
+    return LocalCutPool(manager = manager)
+end
+
+function LocalCutPool(manager::CutRelaxationData)
+    return LocalCutPool(manager = manager)
 end
 
 function number_of_cuts(pool::LocalCutPool)

@@ -73,9 +73,15 @@ function newsvendor_benders(;
     cut_strategy = LightBenders.CutStrategy.MultiCut,
     risk_measure = LightBenders.RiskNeutral(),
     state_variables_builder = state_variables_builder,
+    cut_relaxation = LightBenders.CutRelaxationOptions(active = false),
 )
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
+    dir_name = if cut_strategy == LightBenders.CutStrategy.SingleCut
+        "single_cut"
+    else
+        "multi_cut"
+    end
 
     policy_training_options = LightBenders.PolicyTrainingOptions(;
         num_scenarios = num_scenarios,
@@ -86,6 +92,7 @@ function newsvendor_benders(;
             min_iterations = 2,
         )],
         cut_strategy = cut_strategy,
+        cut_relaxation = cut_relaxation,
         risk_measure = risk_measure,
         # debugging_options = LightBenders.DebuggingOptions(;
         #     logs_dir= joinpath(@__DIR__, "logs"),
@@ -156,6 +163,15 @@ function test_newsvendor_benders()
         @test LightBenders.upper_bound(policy) ≈ -70
         @test results["objective", 0] ≈ -70 atol = 1e-2
     end
+    @testset "Benders Newsvendor single cut risk neutral with cut relaxation" begin
+        policy, results = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.SingleCut,
+            cut_relaxation = LightBenders.CutRelaxationOptions(active = true),
+        )
+        @test LightBenders.lower_bound(policy) ≈ -70
+        @test LightBenders.upper_bound(policy) ≈ -70
+        @test results["objective", 0] ≈ -70 atol = 1e-2
+    end
     @testset "Benders Newsvendor multi cut risk neutral" begin
         policy, results = newsvendor_benders(; cut_strategy = LightBenders.CutStrategy.MultiCut)
         @test LightBenders.lower_bound(policy) ≈ -70
@@ -171,10 +187,29 @@ function test_newsvendor_benders()
         @test LightBenders.upper_bound(policy) ≈ -70
         @test results["objective", 0] ≈ -70 atol = 1e-2
     end
+     @testset "Benders Newsvendor multi cut risk neutral with cut relaxation" begin
+        policy, results = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.MultiCut,
+            cut_relaxation = LightBenders.CutRelaxationOptions(active = true),
+        )
+        @test LightBenders.lower_bound(policy) ≈ -70
+        @test LightBenders.upper_bound(policy) ≈ -70
+        @test results["objective", 0] ≈ -70 atol = 1e-2
+    end
     @testset "Benders Newsvendor single cut CVaR" begin
         policy, results = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.SingleCut,
             risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+        )
+        @test LightBenders.lower_bound(policy) ≈ -50
+        @test LightBenders.upper_bound(policy) ≈ -50
+        @test results["objective", 0] ≈ -50 atol = 1e-2
+    end
+    @testset "Benders Newsvendor single cut CVaR with cut relaxation" begin
+        policy, results = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.SingleCut,
+            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+            cut_relaxation = LightBenders.CutRelaxationOptions(active = true),
         )
         @test LightBenders.lower_bound(policy) ≈ -50
         @test LightBenders.upper_bound(policy) ≈ -50
@@ -194,6 +229,16 @@ function test_newsvendor_benders()
         policy, results = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.MultiCut,
             risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+        )
+        @test LightBenders.lower_bound(policy) ≈ -50
+        @test LightBenders.upper_bound(policy) ≈ -50
+        @test results["objective", 0] ≈ -50 atol = 1e-2
+    end
+    @testset "Benders Newsvendor multi cut CVaR with cut relaxation" begin
+        policy, results = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.MultiCut,
+            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+            cut_relaxation = LightBenders.CutRelaxationOptions(active = true),
         )
         @test LightBenders.lower_bound(policy) ≈ -50
         @test LightBenders.upper_bound(policy) ≈ -50
