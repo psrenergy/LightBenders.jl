@@ -32,6 +32,9 @@ function store_cut!(
     rhs::Float64,
     obj::Float64,
 )
+    if !cut_is_different(pool, coefs, state, rhs, obj)
+        return nothing
+    end
     push!(pool.coefs, coefs)
     push!(pool.state, state)
     push!(pool.rhs, rhs)
