@@ -83,7 +83,6 @@ function get_future_cost(model::JuMP.Model, policy_training_options)::Float64
 end
 
 function initialize_cuts!(model::JuMP.Model, pool, options)
-
     if options.cut_relaxation.active
         add_initial_cuts!(model, pool, options)
     else
@@ -94,7 +93,7 @@ end
 
 function simple_optimize_first_stage(model::JuMP.Model, policy_training_options, progress)
     optimize_with_retry(model)
-    treat_termination_status(model, policy_training_options, 1, progress.current_iteration)
+    return treat_termination_status(model, policy_training_options, 1, progress.current_iteration)
 end
 
 function optimize_first_stage(first_stage_model::JuMP.Model, pool, policy_training_options, progress)
@@ -106,7 +105,6 @@ function optimize_first_stage(first_stage_model::JuMP.Model, pool, policy_traini
     end
     return nothing
 end
-
 
 function cut_relaxation_optimize(model::JuMP.Model, policy_training_options, pool, progress)
     optimize_with_retry(model)

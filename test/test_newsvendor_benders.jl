@@ -77,11 +77,6 @@ function newsvendor_benders(;
 )
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
-    dir_name = if cut_strategy == LightBenders.CutStrategy.SingleCut
-        "single_cut"
-    else
-        "multi_cut"
-    end
 
     policy_training_options = LightBenders.PolicyTrainingOptions(;
         num_scenarios = num_scenarios,
@@ -187,7 +182,7 @@ function test_newsvendor_benders()
         @test LightBenders.upper_bound(policy) ≈ -70
         @test results["objective", 0] ≈ -70 atol = 1e-2
     end
-     @testset "Benders Newsvendor multi cut risk neutral with cut relaxation" begin
+    @testset "Benders Newsvendor multi cut risk neutral with cut relaxation" begin
         policy, results = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.MultiCut,
             cut_relaxation = LightBenders.CutRelaxationOptions(active = true),
