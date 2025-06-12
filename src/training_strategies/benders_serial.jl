@@ -55,6 +55,8 @@ function serial_benders_train(;
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj,
         )
+        progress.time_iteration[progress.current_iteration] = time() - progress.start_time
+
         # Store the (stage, scenario) cut(s) in a persitent pool.
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
@@ -72,6 +74,7 @@ function serial_benders_train(;
             break
         end
     end
+
     return Policy(
         progress = progress,
         pool = iteration_pool,

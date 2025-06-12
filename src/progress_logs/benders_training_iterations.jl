@@ -3,6 +3,7 @@ Base.@kwdef mutable struct BendersTrainingIterationsLog <: AbstractProgressLog
     UB::Vector{Float64} = []
     current_iteration::Int = 0
     start_time::Float64 = time()
+    time_iteration::Vector{Float64} = Float64[]
     progress_table::ProgressTable
 end
 
@@ -30,6 +31,10 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
     return BendersTrainingIterationsLog(progress_table = progress_table)
 end
 
+function current_time(progress::BendersTrainingIterationsLog)
+    return progress.time_iteration[progress.current_iteration]
+end
+
 function current_upper_bound(progress::BendersTrainingIterationsLog)
     return progress.UB[progress.current_iteration]
 end
@@ -53,6 +58,7 @@ end
 function start_iteration!(progress::BendersTrainingIterationsLog)
     push!(progress.LB, 0.0)
     push!(progress.UB, 0.0)
+    push!(progress.time_iteration, 0.0)
     progress.current_iteration += 1
     return nothing
 end
@@ -64,7 +70,7 @@ function report_current_bounds(progress::BendersTrainingIterationsLog)
             current_lower_bound(progress),
             current_upper_bound(progress),
             current_gap(progress),
-            time() - progress.start_time,
+            current_time(progress),
         ],
     )
     return nothing
@@ -77,4 +83,21 @@ function finish_training!(
     finalize(progress.progress_table)
     @info(results_message(convergence_result))
     return nothing
+end
+
+function save_progress_log(
+    progress::BendersTrainingIterationsLog,
+    filepath::String,
+)
+    n_iterations = progress.current_iteration
+    df = DataFrame(
+        Iteration = 1:n_iterations,
+        LowerBound = progress.LB,
+        UpperBound = progress.UB,
+        Gap = progress.UB .- progress.LB,
+        Time = progress.time_iteration,
+    )
+
+    @info("Saving progress log to file: $filepath")
+    CSV.write(filepath, df)
 end

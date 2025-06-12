@@ -6,6 +6,8 @@ using JuMP
 using LinearAlgebra
 using ProgressTables
 using Statistics
+using DataFrames
+using CSV
 
 const JQM = JobQueueMPI
 
