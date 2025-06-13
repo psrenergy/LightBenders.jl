@@ -8,8 +8,12 @@ using ProgressTables
 using Statistics
 using DataFrames
 using CSV
+using TimerOutputs
 
 const JQM = JobQueueMPI
+
+# Timer functionalities
+include("timer_outputs.jl")
 
 # Keys aspects of the algorithm
 include("debugging_options.jl")

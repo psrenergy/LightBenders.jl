@@ -136,7 +136,7 @@ end
 function cut_relaxation_inner!(model::JuMP.Model, pool::CutPoolMultiCut)
     has_violation = false
     for l in 1:length(pool.cuts)
-        has_violation_l = cut_relaxation_inner!(model, pool.cuts[l])
+        @timeit_debug to_train "Cut Relaxation Inner" has_violation_l = cut_relaxation_inner!(model, pool.cuts[l])
         if has_violation_l
             has_violation = true
             break

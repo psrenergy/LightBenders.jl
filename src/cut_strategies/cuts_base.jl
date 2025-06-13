@@ -99,15 +99,15 @@ end
 function optimize_first_stage(first_stage_model::JuMP.Model, pool, policy_training_options, progress)
     store_retry_data(first_stage_model, policy_training_options)
     if policy_training_options.cut_relaxation.active
-        cut_relaxation_optimize(first_stage_model, policy_training_options, pool, progress)
+        @timeit_debug to_train "Cut Relaxation Optimize First Stage" cut_relaxation_optimize(first_stage_model, policy_training_options, pool, progress)
     else
-        simple_optimize_first_stage(first_stage_model, policy_training_options, progress)
+        @timeit_debug to_train "Simple Optimize First Stage" simple_optimize_first_stage(first_stage_model, policy_training_options, progress)
     end
     return nothing
 end
 
 function cut_relaxation_optimize(model::JuMP.Model, policy_training_options, pool, progress)
-    optimize_with_retry(model)
+    @timeit_debug to_train "Optimize First Stage in Cut Relaxation (First)" optimize_with_retry(model)
     treat_termination_status(model, policy_training_options, 1, progress.current_iteration)
 
     cut_iter = 0
@@ -115,13 +115,13 @@ function cut_relaxation_optimize(model::JuMP.Model, policy_training_options, poo
         cut_iter += 1
         update_epigraph_value!(pool)
 
-        has_violation = cut_relaxation_inner!(model, pool)
+        @timeit_debug to_train "Cut Relaxation Inner" has_violation = cut_relaxation_inner!(model, pool)
 
         if !has_violation
             break
         end
 
-        optimize_with_retry(model)
+        @timeit_debug to_train "Optimize First Stage in Cut Relaxation (Loop)" optimize_with_retry(model)
         treat_termination_status(model, policy_training_options, 1, progress.current_iteration)
     end
 

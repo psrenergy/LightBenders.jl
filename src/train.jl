@@ -17,6 +17,7 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     cut_relaxation::CutRelaxationOptions = CutRelaxationOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
+    reset_timer::Bool = true
 end
 
 """
@@ -42,6 +43,9 @@ function train(;
     inputs = nothing,
     policy_training_options::PolicyTrainingOptions,
 )
+    if policy_training_options.reset_timer
+        TimerOutputs.reset_timer!(to_train)
+    end
     if policy_training_options.implementation_strategy isa SerialTraining
         return serial_benders_train(;
             state_variables_builder,

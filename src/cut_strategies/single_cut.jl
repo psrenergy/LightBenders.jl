@@ -215,9 +215,9 @@ function cut_relaxation_inner!(
     model::JuMP.Model,
     pool::CutPoolSingleCut,
 )
-    has_violation, violations = get_violations(pool)
+    @timeit_debug to_train "Get Violations" has_violation, violations = get_violations(pool)
     if has_violation
-        add_violations!(model, pool, violations)
+        @timeit_debug to_train "Add Violations" add_violations!(model, pool, violations)
     end
     return has_violation
 end
