@@ -142,7 +142,7 @@ function create_epigraph_single_cut_variables!(model::JuMP.Model, pool, policy_t
     return nothing
 end
 
-function add_all_cuts!(model::JuMP.Model, pool, policy_training_options)
+function add_all_cuts!(model::JuMP.Model, pool::CutPoolSingleCut, policy_training_options)
     alpha = pool.manager.epigraph_variable::JuMP.VariableRef
     for i in 1:number_of_cuts(pool)
         add_cut(model, alpha, pool.coefs[i], pool.rhs[i])
