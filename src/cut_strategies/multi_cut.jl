@@ -95,9 +95,9 @@ function create_epigraph_multi_cut_variables!(model::JuMP.Model, pool, policy_tr
     return nothing
 end
 
-function add_all_cuts!(model::JuMP.Model, pool::CutPoolMultiCut, policy_training_options)
+function add_incremental_cut!(model::JuMP.Model, pool::CutPoolMultiCut, policy_training_options)
     for l in 1:length(pool.cuts)
-        add_all_cuts!(model, pool.cuts[l], policy_training_options)
+        add_incremental_cut!(model, pool.cuts[l], policy_training_options)
     end
     return nothing
 end

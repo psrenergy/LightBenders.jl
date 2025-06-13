@@ -150,6 +150,15 @@ function add_all_cuts!(model::JuMP.Model, pool, policy_training_options)
     return nothing
 end
 
+function add_incremental_cut!(model::JuMP.Model, pool, policy_training_options)
+    alpha = pool.manager.epigraph_variable::JuMP.VariableRef
+    if number_of_cuts(pool) == 0
+        return nothing
+    end
+    add_cut(model, alpha, pool.coefs[end], pool.rhs[end])
+    return nothing
+end
+
 function add_initial_cuts!(model::JuMP.Model, pool::CutPoolSingleCut, policy_training_options)
     data = pool.manager
     if !data.options.warmstart

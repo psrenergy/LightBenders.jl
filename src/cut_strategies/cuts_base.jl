@@ -86,7 +86,7 @@ function initialize_cuts!(model::JuMP.Model, pool, options)
     if options.cut_relaxation.active
         add_initial_cuts!(model, pool, options)
     else
-        add_all_cuts!(model, pool, options)
+        add_incremental_cut!(model, pool, options)
     end
     return nothing
 end
