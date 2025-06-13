@@ -15,6 +15,7 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     stopping_rule::Vector{AbstractStoppingRule} = [IterationLimit(5)]
     cut_relaxation::CutRelaxationOptions = CutRelaxationOptions()
+    mip_options::MIPOptions = MIPOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
     reset_timer::Bool = true

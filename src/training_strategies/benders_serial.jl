@@ -28,12 +28,18 @@ function serial_benders_train(;
         second_stage_model.ext[:second_stage_state],
     )
 
+    undo_relax = relax_integrality(first_stage_model)
+    relaxed = true
+
     while true
         start_iteration!(progress)
         # first stage
-        t = 1
-        @timeit_debug to_train "Initialize Cuts" initialize_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
-        @timeit_debug to_train "Optimize First Stage" optimize_first_stage(first_stage_model, iteration_pool[t], policy_training_options, progress)
+        if progress.current_iteration > policy_training_options.mip_options.run_mip_after_iteration && relaxed
+            undo_relax()
+            relaxed = false
+        end
+        @timeit_debug to_train "Initialize Cuts" initialize_cuts!(first_stage_model, iteration_pool[1], policy_training_options)
+        @timeit_debug to_train "Optimize First Stage" optimize_first_stage(first_stage_model, iteration_pool[1], policy_training_options, progress)
         state = get_state(first_stage_model)
         future_cost = get_future_cost(first_stage_model, policy_training_options)
         progress.LB[progress.current_iteration] += JuMP.objective_value(first_stage_model)
@@ -63,7 +69,7 @@ function serial_benders_train(;
 
         @timeit_debug to_train "Store Cut: Iteration Pool" store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
         # Reset the cut pool for the next iteration
-        @timeit_debug to_train "Reset Cuts" reset_cuts!(first_stage_model, iteration_pool[1])
+        @timeit_debug to_train "Reset Cuts" reset_cuts!(first_stage_model, iteration_pool[1], progress)
 
         # check convergence
         report_current_bounds(progress)

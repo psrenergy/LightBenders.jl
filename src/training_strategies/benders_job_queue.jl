@@ -50,6 +50,9 @@ function job_queue_benders_train(;
     state_variables_model = state_variables_builder(inputs, stage)
     first_stage_model = first_stage_builder(state_variables_model, inputs)
     create_epigraph_variables!(first_stage_model, iteration_pool[1], policy_training_options)
+    undo_relax = relax_integrality(first_stage_model)
+    relaxed = true
+
 
     # second stage model (here in the controller, only used for checking if the states match)
     stage = 2
@@ -63,6 +66,10 @@ function job_queue_benders_train(;
     while true
         start_iteration!(progress)
         t = 1
+        if progress.current_iteration > policy_training_options.mip_options.run_mip_after_iteration && relaxed
+            undo_relax()
+            relaxed = false
+        end
 
         initialize_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
         optimize_first_stage(first_stage_model, iteration_pool[t], policy_training_options, progress)
