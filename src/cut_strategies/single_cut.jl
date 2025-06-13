@@ -240,7 +240,12 @@ function update_epigraph_value!(pool::CutPoolSingleCut)
     return nothing
 end
 
-function reset_cuts!(model::JuMP.Model, pool::CutPoolSingleCut)
+function reset_cuts!(model::JuMP.Model, pool::CutPoolSingleCut, progress)
+    # Reset cuts at every reset_step iterations
+    reset_step = pool.manager.options.reset_step
+    if mod1(progress.current_iteration, reset_step) != 0
+        return nothing
+    end
     reset_cut_relaxation_data!(model, pool.manager)
     return nothing
 end

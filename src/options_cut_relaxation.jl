@@ -4,4 +4,5 @@ Base.@kwdef mutable struct CutRelaxationOptions
     step_size::Int = 4
     warmstart::Bool = true
     warmstart_size::Int = 4
+    reset_step::Int = 4
 end

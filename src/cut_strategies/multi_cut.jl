@@ -163,9 +163,9 @@ function update_epigraph_value!(pool::CutPoolMultiCut)
     return nothing
 end
 
-function reset_cuts!(model::JuMP.Model, pool::CutPoolMultiCut)
+function reset_cuts!(model::JuMP.Model, pool::CutPoolMultiCut, progress)
     for l in 1:length(pool.cuts)
-        reset_cuts!(model, pool.cuts[l])
+        reset_cuts!(model, pool.cuts[l], progress)
     end
     return nothing
 end
