@@ -37,14 +37,42 @@ mutable struct CutRelaxationData
     end
 end
 
+function get_non_binding_cuts(model::JuMP.Model, added_cuts_ref::Vector{ScalarAffineFunction_GreaterThan}, added_cuts_idx_set::Set{Int})
+    non_binding_cuts_idx = Vector{Int}()
+    non_binding_cuts = Set{Int}()
+    for (i,j) in zip(eachindex(added_cuts_ref), added_cuts_idx_set)
+        # TODO: Check non-binding cuts by primal solution
+        if JuMP.dual(added_cuts_ref[i]) == 0.0
+            push!(non_binding_cuts_idx, i)
+            push!(non_binding_cuts, j)
+        end
+    end
+    return non_binding_cuts_idx, non_binding_cuts
+end
+
 function reset_cut_relaxation_data!(model::JuMP.Model, data::CutRelaxationData)
     N = length(data.added_cuts)
     if N == 0
         return nothing
     end
-    JuMP.delete(model, data.added_cuts_ref)
-    resize!(data.added_cuts_ref, 0)
-    empty!(data.added_cuts)
+    @timeit_debug to_train "Get non binding cuts" non_binding_cuts_idx, non_binding_cuts = get_non_binding_cuts(model, data.added_cuts_ref, data.added_cuts)
+    binding_cuts_idx = setdiff(1:N, non_binding_cuts_idx)
+    binding_cuts = setdiff(data.added_cuts, non_binding_cuts)
+
+    if length(non_binding_cuts) == 0
+        return nothing
+    end
+    if length(binding_cuts) == 0
+        # If all cuts are non-binding, we can just reset the data
+        @timeit_debug to_train "Delete all cuts" JuMP.delete(model, data.added_cuts_ref)
+        resize!(data.added_cuts_ref, 0)
+        empty!(data.added_cuts)
+        data.epigraph_value = Inf
+        return nothing
+    end
+    @timeit_debug to_train "Delete non binding cuts" JuMP.delete(model, data.added_cuts_ref[non_binding_cuts_idx])
+    data.added_cuts_ref = data.added_cuts_ref[binding_cuts_idx]
+    data.added_cuts = binding_cuts
     data.epigraph_value = Inf
     return nothing
 end

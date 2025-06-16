@@ -243,10 +243,10 @@ end
 function reset_cuts!(model::JuMP.Model, pool::CutPoolSingleCut, progress)
     # Reset cuts at every reset_step iterations
     reset_step = pool.manager.options.reset_step
-    if mod1(progress.current_iteration, reset_step) != 0
+    if mod(progress.current_iteration, reset_step) != 0
         return nothing
     end
-    reset_cut_relaxation_data!(model, pool.manager)
+    @timeit_debug to_train "Reset Cut Relaxation Data" reset_cut_relaxation_data!(model, pool.manager)
     return nothing
 end
 
