@@ -35,7 +35,6 @@ function job_queue_benders_train(;
             inputs,
             policy_training_options,
         )
-        JQM.mpi_barrier()
         return nothing
     end
 
@@ -109,24 +108,21 @@ function job_queue_benders_train(;
         # Store the (stage, scenario) cut(s) in a persitent pool.
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
-        if JQM.is_controller_process()
-            store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
-            reset_cuts!(first_stage_model, iteration_pool[1], progress)
-            progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
-                policy_training_options, local_pools.obj,
-            )
-            progress.time_iteration[progress.current_iteration] = time() - progress.start_time
-            report_current_bounds(progress)
-            convergence_result =
-                convergence_test(progress, policy_training_options.stopping_rule)
-        end
+        store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
+        reset_cuts!(first_stage_model, iteration_pool[1], progress)
+        progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
+            policy_training_options, local_pools.obj,
+        )
+        progress.time_iteration[progress.current_iteration] = time() - progress.start_time
+        report_current_bounds(progress)
+        convergence_result =
+            convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result)
             finish_training!(progress, convergence_result)
             JQM.send_termination_message()
             break
         end
     end
-    JQM.mpi_barrier()
 
     return Policy(
         progress = progress,
