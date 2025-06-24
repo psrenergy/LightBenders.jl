@@ -110,7 +110,7 @@ function job_queue_benders_train(;
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
-        reset_cuts!(first_stage_model, iteration_pool[1])
+        reset_cuts!(first_stage_model, iteration_pool[1], progress)
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj,
         )
