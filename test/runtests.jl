@@ -18,7 +18,7 @@ function test_modules(dir::AbstractString)
     return result
 end
 
-function test_all()    
+function test_all()
     @testset "Aqua.jl" begin
         test_aqua()
     end
