@@ -14,7 +14,9 @@ function serial_benders_simulate(;
     results = Dict{Tuple{String, Int}, Any}() # (variable_name, scenario) => value
 
     # first stage
-    @info("Simulating first stage...")
+    if simulation_options.verbose
+        @info("Simulating first stage...")
+    end
 
     stage = 1
     state_variables_model = state_variables_builder(inputs, stage)
@@ -33,7 +35,9 @@ function serial_benders_simulate(;
     end
 
     # second stage
-    @info("Simulating second stage...")
+    if simulation_options.verbose
+        @info("Simulating second stage...")
+    end
     state = if simulation_options.state_handling == SimulationStateHandling.StatesRecalculatedInSimulation
         get_state(model)
     elseif simulation_options.state_handling == SimulationStateHandling.StatesFixedInPolicyResult
