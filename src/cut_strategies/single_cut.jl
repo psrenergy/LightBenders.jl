@@ -18,6 +18,47 @@ function number_of_cuts(pool::CutPoolSingleCut)
     return length(pool.rhs)
 end
 
+function cut_is_different(
+    pool::Union{CutPoolSingleCut, LocalCutPool},
+    coefs::Vector{Float64},
+    state::Vector{Float64},
+    rhs::Float64,
+    obj::Float64,
+)
+    return true
+    if isempty(pool)
+        return true
+    end
+    ATOL = 1e-26
+    # First check only the rhs and obj
+    for i in number_of_cuts(pool):-1:1
+        if !isapprox(pool.rhs[i], rhs; atol = ATOL)
+            return true
+        end
+        if !isapprox(pool.obj[i], obj; atol = ATOL)
+            return true
+        end
+    end
+
+    # Then check the coefficients
+    for i in 1:number_of_cuts(pool)
+        for j in 1:size(pool.coefs, 1)
+            if !isapprox(pool.coefs[j, i], coefs[j]; atol = ATOL)
+                return true
+            end
+        end
+    end
+
+    # Then check the states
+    for i in number_of_cuts(pool):-1:1
+        if !isapprox(pool.state[i], state; atol = ATOL)
+            return true
+        end
+    end
+
+    return false
+end
+
 function store_cut!(
     pool::CutPoolSingleCut,
     coefs::Vector{Float64},
@@ -25,6 +66,9 @@ function store_cut!(
     rhs::Float64,
     obj::Float64,
 )
+    if !cut_is_different(pool, coefs, state, rhs, obj)
+        return nothing
+    end
     push!(pool.coefs, coefs)
     push!(pool.state, state)
     push!(pool.rhs, rhs)

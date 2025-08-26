@@ -28,10 +28,17 @@ function serial_benders_train(;
         first_stage_model.ext[:first_stage_state],
         second_stage_model.ext[:second_stage_state],
     )
+
+    undo_relax = relax_integrality(first_stage_model)
+    relaxed = true
     
     while true
         start_iteration!(progress)
         # first stage
+        if progress.current_iteration > policy_training_options.mip_options.run_mip_after_iteration && relaxed
+            undo_relax()
+            relaxed = false
+        end
         t = 1
         add_all_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
         store_retry_data(first_stage_model, policy_training_options)
@@ -59,6 +66,7 @@ function serial_benders_train(;
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj
         )
+        progress.time_iteration[progress.current_iteration] = time() - progress.start_time
         # Store the (stage, scenario) cut(s) in a persitent pool.
         # Cuts here can be following the single cut strategy or 
         # the multi cut strategy
@@ -66,11 +74,15 @@ function serial_benders_train(;
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
 
         # check convergence
-        report_current_bounds(progress)
+        if policy_training_options.verbose
+            report_current_bounds(progress)
+        end
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result)
-            finish_training!(progress, convergence_result)
+            if policy_training_options.verbose
+                finish_training!(progress, convergence_result)
+            end
             break
         end
     end

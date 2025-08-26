@@ -63,7 +63,26 @@ function get_state(model)
     cache = model.ext[:first_stage_state]::StateCache
     state = Vector{Float64}(undef, length(cache.variables))
     for i in eachindex(cache.variables)
-        state[i] = JuMP.value(cache.variables[i])
+        value = JuMP.value(cache.variables[i])
+        # Ensure the state variable is within bounds
+        if has_upper_bound(cache.variables[i])
+            if value > JuMP.upper_bound(cache.variables[i])
+                value = JuMP.upper_bound(cache.variables[i])
+            end
+        end
+        if has_lower_bound(cache.variables[i])
+            if value < JuMP.lower_bound(cache.variables[i])
+                value = JuMP.lower_bound(cache.variables[i])
+            end
+        end
+        if is_binary(cache.variables[i])
+            if value > 0.5
+                value = 1.0
+            else
+                value = 0.0
+            end
+        end
+        state[i] = value
     end
     return state
 end

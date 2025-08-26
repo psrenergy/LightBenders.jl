@@ -10,10 +10,12 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     num_scenarios::Int
     lower_bound::Real = 0.0
     discount_rate::Real = 0.0
+    verbose::Bool = true
     implementation_strategy::AbstractTrainingImplementation = SerialTraining()
     cut_strategy::CutStrategy.T = CutStrategy.SingleCut
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     stopping_rule::Vector{AbstractStoppingRule} = [IterationLimit(5)]
+    mip_options::MIPOptions = MIPOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
 end
