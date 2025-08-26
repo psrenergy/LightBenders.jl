@@ -1,13 +1,13 @@
 mutable struct SecondStageMessage
     iteration::Int
     scenario::Int
-    state
+    state::Any
 end
 
 mutable struct SecondStageAnswer
-    coefs
-    rhs
-    obj
+    coefs::Any
+    rhs::Any
+    obj::Any
     scenario::Int
 end
 
@@ -59,7 +59,7 @@ function job_queue_benders_train(;
     # second stage model (here in the controller, only used for checking if the states match)
     stage = 2
     second_stage_state_variables_model = state_variables_builder(inputs, stage)
-    
+
     check_state_match(
         first_stage_model.ext[:first_stage_state],
         second_stage_state_variables_model.ext[:second_stage_state],
@@ -118,7 +118,7 @@ function job_queue_benders_train(;
         store_cut!(pool, local_pools, state, policy_training_options, t)
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
-            policy_training_options, local_pools.obj
+            policy_training_options, local_pools.obj,
         )
         progress.time_iteration[progress.current_iteration] = time() - progress.start_time
         if policy_training_options.verbose
@@ -158,7 +158,7 @@ function workers_loop(
         if message == JQM.TerminationMessage()
             break
         end
-       
+
         answer = worker_second_stage(
             second_stage_model,
             second_stage_modifier,
@@ -167,7 +167,6 @@ function workers_loop(
             message,
         )
         JQM.send_job_answer_to_controller(worker, answer)
-
     end
     return nothing
 end

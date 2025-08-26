@@ -95,7 +95,7 @@ end
 function all_variables_but_state(model::JuMP.Model)
     return setdiff(
         JuMP.all_variables(model),
-        model.ext[:first_stage_state].variables
+        model.ext[:first_stage_state].variables,
     )
 end
 

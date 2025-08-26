@@ -127,8 +127,12 @@ function get_multi_cut_future_cost(model::JuMP.Model, policy_training_options)::
         delta_explicit_cvar = JuMP.value.(model[:delta_explicit_cvar])
         fcf = z_explicit_cvar * discount_rate_multiplier * (policy_training_options.risk_measure.lambda)
         for scen in 1:policy_training_options.num_scenarios
-            fcf += alphas[scen] * discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) / policy_training_options.num_scenarios
-            fcf += delta_explicit_cvar[scen] * discount_rate_multiplier * (policy_training_options.risk_measure.lambda) / ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_scenarios)
+            fcf +=
+                alphas[scen] * discount_rate_multiplier * (1 - policy_training_options.risk_measure.lambda) /
+                policy_training_options.num_scenarios
+            fcf +=
+                delta_explicit_cvar[scen] * discount_rate_multiplier * (policy_training_options.risk_measure.lambda) /
+                ((1 - policy_training_options.risk_measure.alpha) * policy_training_options.num_scenarios)
         end
         return fcf
     end

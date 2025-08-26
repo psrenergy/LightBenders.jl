@@ -88,7 +88,7 @@ function newsvendor_benders(;
         )],
         cut_strategy = cut_strategy,
         risk_measure = risk_measure,
-        verbose = verbose
+        verbose = verbose,
         # debugging_options = LightBenders.DebuggingOptions(;
         #     logs_dir= joinpath(@__DIR__, "logs"),
         #     write_lp = true,

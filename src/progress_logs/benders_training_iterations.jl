@@ -81,7 +81,7 @@ end
 
 function finish_training!(
     progress::BendersTrainingIterationsLog,
-    convergence_result::ConvergenceResult,    
+    convergence_result::ConvergenceResult,
 )
     finalize(progress.progress_table)
     @info(results_message(convergence_result))
