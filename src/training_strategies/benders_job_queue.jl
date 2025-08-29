@@ -126,7 +126,7 @@ function job_queue_benders_train(;
         end
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
-        if has_converged(convergence_result)
+        if has_converged(convergence_result) || progress.LB[progress.current_iteration] > progress.UB[progress.current_iteration]
             if policy_training_options.verbose
                 finish_training!(progress, convergence_result)
             end

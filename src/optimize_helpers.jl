@@ -33,6 +33,9 @@ end
 function treat_termination_status(model::JuMP.Model, options::PolicyTrainingOptions, t::Int, iter::Int)
     file_name = "model_stage_$(t)_iteration_$(iter)"
     info_msg = "Training model of stage $t, iteration $iter finished with termination status: $(termination_status(model))"
+    if !isnothing(options.debugging_options.callback)
+        options.debugging_options.callback(model, file_name)
+    end
     treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
@@ -40,6 +43,9 @@ end
 function treat_termination_status(model::JuMP.Model, options::PolicyTrainingOptions, t::Int, s::Int, iter::Int)
     file_name = "model_stage_$(t)_scenario_$(s)_iteration_$(iter)"
     info_msg = "Training model of stage $t, scenario $s, iteration $iter finished with termination status: $(termination_status(model))"
+    if !isnothing(options.debugging_options.callback)
+        options.debugging_options.callback(model, file_name)
+    end
     treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
