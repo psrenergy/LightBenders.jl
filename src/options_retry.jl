@@ -5,31 +5,31 @@ Options for retrying optimization with different options.
 
 example
 retry_optimize = LightBenders.RetryOptimizeOptions(
-        callback = function retry(model)
-            HiGHS.Highs_clearSolver(backend(model).optimizer)
-            return nothing
-        end,
-        data = Vector{Pair{String,Any}}[
-            Pair{String,Any}[
-                "presolve" => "off",
-                "solver" => "simplex",
-                "simplex_strategy" => 1,
-            ],
-            Pair{String,Any}[
-                "presolve" => "on",
-                "solver" => "simplex",
-                "simplex_strategy" => 4,
-            ],
-            Pair{String,Any}[
-                "presolve" => "on",
-                "solver" => "ipm",
-            ],
-        ]
-    ),
+callback = function retry(model)
+HiGHS.Highs_clearSolver(backend(model).optimizer)
+return nothing
+end,
+data = Vector{Pair{String,Any}}[
+Pair{String,Any}[
+"presolve" => "off",
+"solver" => "simplex",
+"simplex_strategy" => 1,
+],
+Pair{String,Any}[
+"presolve" => "on",
+"solver" => "simplex",
+"simplex_strategy" => 4,
+],
+Pair{String,Any}[
+"presolve" => "on",
+"solver" => "ipm",
+],
+]
+),
 """
 Base.@kwdef mutable struct RetryOptimizeOptions
     callback::Union{Function, Nothing} = nothing
-    data::Vector{Vector{Pair{String,Any}}} = Vector{Pair{String,Any}}[]
+    data::Vector{Vector{Pair{String, Any}}} = Vector{Pair{String, Any}}[]
 end
 
 function store_retry_data(model, options)
@@ -60,7 +60,7 @@ function optimize_with_retry(model)::Nothing
     end
     # Then try changing options
     for options in data
-        current = Pair{String,Any}[]
+        current = Pair{String, Any}[]
         for (key, value) in options
             temp = get_attribute(model, key)
             push!(current, key => temp)

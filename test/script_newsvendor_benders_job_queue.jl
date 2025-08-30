@@ -70,10 +70,11 @@ function second_stage_modifier(sp, inputs, s)
 end
 
 function newsvendor_benders(;
-        cut_strategy = LightBenders.CutStrategy.MultiCut,
-        risk_measure = LightBenders.RiskNeutral(),
-        state_variables_builder = state_variables_builder,
-    )
+    cut_strategy = LightBenders.CutStrategy.MultiCut,
+    risk_measure = LightBenders.RiskNeutral(),
+    state_variables_builder = state_variables_builder,
+    verbose = true,
+)
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
     num_scenarios = length(inputs.demand)
 
@@ -87,6 +88,7 @@ function newsvendor_benders(;
         )],
         cut_strategy = cut_strategy,
         risk_measure = risk_measure,
+        verbose = verbose,
         # debugging_options = LightBenders.DebuggingOptions(;
         #     logs_dir = joinpath(@__DIR__, "logs_job_queue_multi_cut"),
         #     write_lp = true,
@@ -129,7 +131,19 @@ end
 function test_newsvendor_benders()
     @testset "[Job Queue] Benders Newsvendor single cut" begin
         v = newsvendor_benders(;
-            cut_strategy = LightBenders.CutStrategy.SingleCut
+            cut_strategy = LightBenders.CutStrategy.SingleCut,
+        )
+        if v !== nothing
+            policy, results = v
+            @test LightBenders.lower_bound(policy) ≈ -70
+            @test LightBenders.upper_bound(policy) ≈ -70
+            @test results["objective", 0] ≈ -70 atol = 1e-2
+        end
+    end
+    @testset "[Job Queue] Benders Newsvendor single cut no verbose" begin
+        v = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.SingleCut,
+            verbose = false,
         )
         if v !== nothing
             policy, results = v
@@ -141,7 +155,7 @@ function test_newsvendor_benders()
     @testset "[Job Queue] Benders Newsvendor single cut state parameter" begin
         v = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.SingleCut,
-            state_variables_builder = state_variables_builder_parameter
+            state_variables_builder = state_variables_builder_parameter,
         )
         if v !== nothing
             policy, results = v
@@ -165,7 +179,7 @@ function test_newsvendor_benders()
     @testset "[Job Queue] Benders Newsvendor multi cut state parameter" begin
         v = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.MultiCut,
-            state_variables_builder = state_variables_builder_parameter
+            state_variables_builder = state_variables_builder_parameter,
         )
         if v !== nothing
             policy, results = v
@@ -177,7 +191,7 @@ function test_newsvendor_benders()
     @testset "[Job Queue] Benders Newsvendor single cut CVaR" begin
         v = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.SingleCut,
-            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5)
+            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
         )
         if v !== nothing
             policy, results = v
@@ -202,7 +216,7 @@ function test_newsvendor_benders()
     @testset "[Job Queue] Benders Newsvendor multi cut CVaR" begin
         v = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.MultiCut,
-            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5)
+            risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
         )
         if v !== nothing
             policy, results = v

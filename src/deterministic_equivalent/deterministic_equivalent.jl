@@ -84,13 +84,8 @@ function copy_and_replace_variables(
 end
 
 function is_state_variable(var, model::JuMP.Model)
-    state = model.ext[:first_stage_state]
-    for idx in eachindex(state.variables)
-        if var == state.variables[idx]
-            return true
-        end
-    end
-    return false
+    return var isa JuMP.VariableRef &&
+           var in model.ext[:first_stage_state].variables
 end
 
 function num_state_variables(model::JuMP.Model)
@@ -98,7 +93,10 @@ function num_state_variables(model::JuMP.Model)
 end
 
 function all_variables_but_state(model::JuMP.Model)
-    return filter(var -> !is_state_variable(var, model), vcat(JuMP.all_variables(model)))
+    return setdiff(
+        JuMP.all_variables(model),
+        model.ext[:first_stage_state].variables,
+    )
 end
 
 function push_model!(
