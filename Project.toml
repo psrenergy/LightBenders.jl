@@ -1,7 +1,7 @@
 name = "LightBenders"
 uuid = "2e9fe063-9687-4d41-bf41-4f062739391f"
-authors = ["guilhermebodin", "raphasampaio", "viniciusjusten"]
-version = "0.2.0"
+authors = ["guilhermebodin", "raphasampaio", "viniciusjusten", "rafabench"]
+version = "0.2.1"
 
 [deps]
 EnumX = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
