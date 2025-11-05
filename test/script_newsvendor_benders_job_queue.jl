@@ -166,7 +166,7 @@ function test_newsvendor_benders()
     end
     @testset "[Job Queue] Benders Newsvendor multi cut" begin
         v = newsvendor_benders(;
-            cut_strategy = LightBenders.CutStrategy.MultiCut
+            cut_strategy = LightBenders.CutStrategy.MultiCut,
         )
         if v !== nothing
             policy, results = v
