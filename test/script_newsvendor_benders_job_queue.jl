@@ -164,18 +164,17 @@ function test_newsvendor_benders()
             @test results["objective", 0] ≈ -70 atol = 1e-2
         end
     end
-    # TODO - understand why risk neutral multi cut with job queue is not always working
-    # @testset "[Job Queue] Benders Newsvendor multi cut" begin
-    #     v = newsvendor_benders(;
-    #         cut_strategy = LightBenders.CutStrategy.MultiCut
-    #     )
-    #     if v !== nothing
-    #         policy, results = v
-    #         @test LightBenders.lower_bound(policy) ≈ -70
-    #         @test LightBenders.upper_bound(policy) ≈ -70
-    #         @test results["objective", 0] ≈ -70 atol = 1e-2
-    #     end
-    # end
+    @testset "[Job Queue] Benders Newsvendor multi cut" begin
+        v = newsvendor_benders(;
+            cut_strategy = LightBenders.CutStrategy.MultiCut
+        )
+        if v !== nothing
+            policy, results = v
+            @test LightBenders.lower_bound(policy) ≈ -70
+            @test LightBenders.upper_bound(policy) ≈ -70
+            @test results["objective", 0] ≈ -70 atol = 1e-2
+        end
+    end
     @testset "[Job Queue] Benders Newsvendor multi cut state parameter" begin
         v = newsvendor_benders(;
             cut_strategy = LightBenders.CutStrategy.MultiCut,
