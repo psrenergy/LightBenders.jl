@@ -85,7 +85,8 @@ function job_queue_benders_train(;
         iteration_pool = initialize_cut_pool(policy_training_options)
 
         t = 2
-        local_pools = LocalCutPool()
+        # Pre-allocate LocalCutPool to store cuts in correct scenario order
+        local_pools = LocalCutPool(policy_training_options.num_scenarios)
         for s in 1:policy_training_options.num_scenarios
             message = SecondStageMessage(progress.current_iteration, s, state)
             JQM.add_job_to_queue!(controller, message)
@@ -99,12 +100,14 @@ function job_queue_benders_train(;
                 if !isnothing(job_answer)
                     message = JQM.get_message(job_answer)
                     if message isa SecondStageAnswer
+                        # Store cut at correct scenario index to preserve ordering
                         store_cut!(
                             local_pools,
                             message.coefs,
                             state,
                             message.rhs,
                             message.obj,
+                            message.scenario,
                         )
                     else
                         error("Unexpected message type received from worker")
@@ -112,8 +115,10 @@ function job_queue_benders_train(;
                 end
             end
         end
-        # Store the (stage, scenario) cut(s) in a persitent pool.
-        # Cuts here can be following the single cut strategy or 
+        # Validate that all scenarios completed successfully
+        validate_all_scenarios_processed(local_pools, policy_training_options.num_scenarios)
+        # Store the (stage, scenario) cut(s) in a persistent pool.
+        # Cuts here can be following the single cut strategy or
         # the multi cut strategy
         store_cut!(pool, local_pools, state, policy_training_options, t)
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
