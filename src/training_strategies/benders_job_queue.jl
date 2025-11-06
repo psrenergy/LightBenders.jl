@@ -115,8 +115,10 @@ function job_queue_benders_train(;
                 end
             end
         end
+        # Validate that all scenarios completed successfully
+        validate_all_scenarios_processed(local_pools, policy_training_options.num_scenarios)
         # Store the (stage, scenario) cut(s) in a persitent pool.
-        # Cuts here can be following the single cut strategy or 
+        # Cuts here can be following the single cut strategy or
         # the multi cut strategy
         store_cut!(pool, local_pools, state, policy_training_options, t)
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
