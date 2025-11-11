@@ -142,6 +142,48 @@ function newsvendor_deterministic()
     @test det_eq_results["objective", 0] ≈ -70 atol = 1e-2
 end
 
+function newsvendor_deterministic_cvar()
+    inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
+    num_scenarios = length(inputs.demand)
+
+    options = LightBenders.DeterministicEquivalentOptions(;
+        num_scenarios = num_scenarios,
+        risk_measure = LightBenders.CVaR(alpha = 0.9, lambda = 0.5),
+    )
+
+    det_eq_results = LightBenders.deterministic_equivalent(;
+        state_variables_builder,
+        first_stage_builder,
+        second_stage_builder,
+        second_stage_modifier,
+        inputs,
+        options,
+    )
+
+    @test det_eq_results["objective", 0] ≈ -50 atol = 1e-2
+end
+
+function newsvendor_deterministic_with_names()
+    inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
+    num_scenarios = length(inputs.demand)
+
+    options = LightBenders.DeterministicEquivalentOptions(;
+        num_scenarios = num_scenarios,
+        set_names = true,
+    )
+
+    det_eq_results = LightBenders.deterministic_equivalent(;
+        state_variables_builder,
+        first_stage_builder,
+        second_stage_builder,
+        second_stage_modifier,
+        inputs,
+        options,
+    )
+
+    @test det_eq_results["objective", 0] ≈ -70 atol = 1e-2
+end
+
 function test_newsvendor_benders()
     @testset "Benders Newsvendor single cut risk neutral" begin
         policy, results = newsvendor_benders(; cut_strategy = LightBenders.CutStrategy.SingleCut)
@@ -219,6 +261,12 @@ function test_newsvendor_benders()
     end
     @testset "Deterministic equivalent Newsvendor" begin
         newsvendor_deterministic()
+    end
+    @testset "Deterministic equivalent Newsvendor CVaR" begin
+        newsvendor_deterministic_cvar()
+    end
+    @testset "Deterministic equivalent Newsvendor with set_names" begin
+        newsvendor_deterministic_with_names()
     end
 end
 
