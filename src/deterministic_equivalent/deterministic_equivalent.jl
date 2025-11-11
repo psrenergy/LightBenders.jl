@@ -9,6 +9,276 @@ Base.@kwdef mutable struct DeterministicEquivalentOptions
     skip_results::Bool = false  # Set to true to skip results extraction (useful when only writing LP files)
 end
 
+# ============================================================================
+# Parameter Handling
+# ============================================================================
+
+struct ParameterInfo
+    vars::Vector{JuMP.VariableRef}
+    values::Vector{Float64}
+end
+
+function identify_parameters(model::JuMP.Model)
+    parameter_vars = JuMP.VariableRef[]
+    moi_model = JuMP.backend(model)
+
+    for var in JuMP.all_variables(model)
+        var_index = JuMP.index(var)
+        ci_type = MOI.ConstraintIndex{MOI.VariableIndex, MOI.Parameter{Float64}}
+        ci = ci_type(var_index.value)
+
+        if MOI.is_valid(moi_model, ci)
+            push!(parameter_vars, var)
+        end
+    end
+
+    return parameter_vars
+end
+
+function extract_parameter_values(model::JuMP.Model, parameter_vars::Vector{JuMP.VariableRef})
+    moi_model = JuMP.backend(model)
+    values = map(parameter_vars) do var
+        var_index = JuMP.index(var)
+        ci_type = MOI.ConstraintIndex{MOI.VariableIndex, MOI.Parameter{Float64}}
+        ci = ci_type(var_index.value)
+        param_set = MOI.get(moi_model, MOI.ConstraintSet(), ci)
+        param_set.value
+    end
+    return values
+end
+
+function get_parameter_info(subproblem::JuMP.Model, scenario::Int, inputs, second_stage_modifier::Function)
+    # Call modifier to update parameters for this scenario
+    second_stage_modifier(subproblem, inputs, scenario)
+
+    # Extract current parameter values
+    parameter_vars = identify_parameters(subproblem)
+    parameter_values = extract_parameter_values(subproblem, parameter_vars)
+
+    return ParameterInfo(parameter_vars, parameter_values)
+end
+
+# ============================================================================
+# Constraint Caching
+# ============================================================================
+
+struct ConstraintCache
+    constraint_types::Vector{Tuple{DataType, DataType}}
+    constraints::Vector{Vector{Any}}
+end
+
+function cache_constraints(subproblem::JuMP.Model)
+    constraint_types = JuMP.list_of_constraint_types(subproblem)
+    constraints = [collect(JuMP.all_constraints(subproblem, F, S)) for (F, S) in constraint_types]
+    return ConstraintCache(constraint_types, constraints)
+end
+
+function add_cached_constraints!(
+    model::JuMP.Model,
+    cache::ConstraintCache,
+    var_mapping::Dict{JuMP.VariableRef, Any},
+    state_vars_set::Set{JuMP.VariableRef}
+)
+    for (type_idx, (F, S)) in enumerate(cache.constraint_types)
+        # Skip MOI.Parameter constraints (not real constraints)
+        S <: MOI.Parameter && continue
+
+        constraint_list = cache.constraints[type_idx]
+
+        for con in constraint_list
+            obj = JuMP.constraint_object(con)
+
+            # Skip state variable bounds (already in model)
+            if obj.func isa JuMP.VariableRef && obj.func in state_vars_set
+                continue
+            end
+
+            new_func = substitute_variables(obj.func, var_mapping)
+            JuMP.add_constraint(model, JuMP.build_constraint(error, new_func, obj.set))
+        end
+    end
+
+    return nothing
+end
+
+# ============================================================================
+# Scenario Processing
+# ============================================================================
+
+struct ScenarioData
+    subproblem_vars::Vector{JuMP.VariableRef}
+    parameter_vars::Vector{JuMP.VariableRef}
+    state_vars_set::Set{JuMP.VariableRef}
+    constraint_cache::ConstraintCache
+end
+
+function prepare_subproblem_template(subproblem::JuMP.Model)
+    # Identify parameters and cache constraints
+    parameter_vars = identify_parameters(subproblem)
+    constraint_cache = cache_constraints(subproblem)
+
+    # Get non-state, non-parameter variables
+    state_vars = subproblem.ext[:first_stage_state].variables
+    all_vars = JuMP.all_variables(subproblem)
+    subproblem_vars = setdiff(all_vars, union(Set(state_vars), Set(parameter_vars)))
+
+    # Pre-build state variable set for O(1) lookup
+    state_vars_set = Set(state_vars)
+
+    return ScenarioData(subproblem_vars, parameter_vars, state_vars_set, constraint_cache)
+end
+
+function build_variable_mapping(
+    model::JuMP.Model,
+    subproblem::JuMP.Model,
+    scenario_vars::Vector{JuMP.VariableRef},
+    param_info::ParameterInfo,
+    scenario_data::ScenarioData
+)
+    var_mapping = Dict{JuMP.VariableRef, Any}()
+    sizehint!(var_mapping, length(scenario_vars) + length(model.ext[:first_stage_state].variables) + length(param_info.vars))
+
+    # Map subproblem variables to scenario-specific variables
+    for (src, dest) in zip(scenario_data.subproblem_vars, scenario_vars)
+        var_mapping[src] = dest
+    end
+
+    # Map state variables (first stage -> second stage)
+    model_state = model.ext[:first_stage_state]
+    subproblem_state = subproblem.ext[:first_stage_state]
+    for (model_var, subproblem_var) in zip(model_state.variables, subproblem_state.variables)
+        var_mapping[subproblem_var] = model_var
+    end
+
+    # Map parameters to their constant values for this scenario
+    for (param_var, param_value) in zip(param_info.vars, param_info.values)
+        var_mapping[param_var] = param_value
+    end
+
+    return var_mapping
+end
+
+function add_scenario_to_model!(
+    model::JuMP.Model,
+    subproblem::JuMP.Model,
+    scenario::Int,
+    inputs,
+    second_stage_modifier::Function,
+    scenario_data::ScenarioData,
+    options::DeterministicEquivalentOptions,
+    var_scenario_map::Union{Dict, Nothing}
+)
+    # Get parameter values for this scenario
+    param_info = get_parameter_info(subproblem, scenario, inputs, second_stage_modifier)
+
+    # Create scenario-specific variables
+    num_vars = length(scenario_data.subproblem_vars)
+    scenario_vars = @variable(model, [i in 1:num_vars])
+
+    # Build variable mapping
+    var_mapping = build_variable_mapping(model, subproblem, scenario_vars, param_info, scenario_data)
+
+    # Track variable names for results extraction (if needed)
+    if !options.skip_results && !isnothing(var_scenario_map)
+        for (src, dest) in zip(scenario_data.subproblem_vars, scenario_vars)
+            src_name = JuMP.name(src)
+            if !isempty(src_name)
+                var_scenario_map[dest] = (src_name, scenario)
+            end
+        end
+    end
+
+    # Set variable names for debugging (if requested)
+    if options.set_names
+        for (src, dest) in zip(scenario_data.subproblem_vars, scenario_vars)
+            src_name = JuMP.name(src)
+            if !isempty(src_name)
+                JuMP.set_name(dest, "$(src_name)_scen$(scenario)")
+            end
+        end
+    end
+
+    # Add constraints for this scenario
+    add_cached_constraints!(model, scenario_data.constraint_cache, var_mapping, scenario_data.state_vars_set)
+
+    # Extract and return objective for this scenario
+    subproblem_objective = substitute_variables(JuMP.objective_function(subproblem), var_mapping)
+    return subproblem_objective
+end
+
+# ============================================================================
+# Objective Building
+# ============================================================================
+
+function build_risk_neutral_objective(
+    first_stage_objective,
+    scenario_objectives::Vector,
+    num_scenarios::Int
+)
+    weighted_scenarios = [(1 / num_scenarios) * obj for obj in scenario_objectives]
+    return first_stage_objective + sum(weighted_scenarios)
+end
+
+function build_cvar_objective(
+    model::JuMP.Model,
+    first_stage_objective,
+    scenario_objectives::Vector,
+    num_scenarios::Int,
+    cvar::CVaR,
+    set_names::Bool
+)
+    # CVaR formulation: auxiliary variables z and delta[scen] >= 0
+    # Constraints: delta[scen] >= scenario_objective[scen] - z
+    # Objective: first_stage + (1-λ) * mean(scenarios) + λ * (z + 1/(1-α) * mean(deltas))
+
+    @variable(model, z_cvar)
+    @variable(model, delta_cvar[1:num_scenarios] >= 0)
+
+    # Set names for debugging (if requested)
+    if set_names
+        JuMP.set_name(z_cvar, "z_cvar")
+        for scen in 1:num_scenarios
+            JuMP.set_name(delta_cvar[scen], "delta_cvar_scen$(scen)")
+        end
+    end
+
+    # Add CVaR constraints
+    for scen in 1:num_scenarios
+        con = @constraint(model, delta_cvar[scen] >= scenario_objectives[scen] - z_cvar)
+        set_names && JuMP.set_name(con, "cvar_constraint_scen$(scen)")
+    end
+
+    # Build complete objective
+    alpha, lambda = cvar.alpha, cvar.lambda
+    expected_value = sum((1 - lambda) / num_scenarios * scenario_objectives[scen] for scen in 1:num_scenarios)
+    cvar_term = lambda * (z_cvar + sum(delta_cvar[scen] / ((1 - alpha) * num_scenarios) for scen in 1:num_scenarios))
+
+    return first_stage_objective + expected_value + cvar_term
+end
+
+function build_objective!(
+    model::JuMP.Model,
+    first_stage_objective,
+    scenario_objectives::Vector,
+    options::DeterministicEquivalentOptions
+)
+    objective = if options.risk_measure isa RiskNeutral
+        build_risk_neutral_objective(first_stage_objective, scenario_objectives, options.num_scenarios)
+    elseif options.risk_measure isa CVaR
+        build_cvar_objective(model, first_stage_objective, scenario_objectives,
+                           options.num_scenarios, options.risk_measure, options.set_names)
+    else
+        error("Unsupported risk measure: $(typeof(options.risk_measure))")
+    end
+
+    JuMP.set_objective_function(model, objective)
+    return nothing
+end
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
+
 function deterministic_equivalent(;
     state_variables_builder::Function,
     first_stage_builder::Function,
@@ -17,380 +287,173 @@ function deterministic_equivalent(;
     inputs = nothing,
     options::DeterministicEquivalentOptions,
 )
-    num_scenarios = options.num_scenarios
-    DeterministicEquivalentLog(num_scenarios)
+    DeterministicEquivalentLog(options.num_scenarios)
+    @info "Building deterministic equivalent with $(options.num_scenarios) scenarios..."
 
-    @info "Building deterministic equivalent with $num_scenarios scenarios..."
-
-    stage = 1
+    # Build first-stage model
     @info "  [1/5] Building first stage model..."
-    model = state_variables_builder(inputs, stage)
-    first_stage_builder(model, inputs)
-
-    # Extract first stage objective once
+    model = build_first_stage_model(state_variables_builder, first_stage_builder, inputs)
     first_stage_objective = JuMP.objective_function(model)
 
+    # Build and cache second-stage template
     @info "  [2/5] Building subproblem template..."
-    # Create subproblem template and extract structure ONCE
-    subproblem = state_variables_builder(inputs, stage)
-    second_stage_builder(subproblem, inputs)
+    subproblem = build_second_stage_template(state_variables_builder, second_stage_builder, inputs)
 
     @info "  [3/5] Caching constraint structure..."
-    # Cache constraint structure to avoid repeated model inspection
-    cached_constraint_info = cache_constraint_structure(subproblem)
+    scenario_data = prepare_subproblem_template(subproblem)
 
-    # Identify parameter variables (variables in MOI.Parameter set)
-    parameter_vars = identify_parameter_variables(subproblem)
+    # Pre-allocate variable mapping for results (if needed)
+    var_scenario_map = initialize_variable_map(scenario_data, options)
 
-    # Cache subproblem variables (they don't change between scenarios)
-    # Exclude both state variables AND parameter variables
-    cached_subproblem_vars = all_variables_but_state_and_parameters(subproblem, parameter_vars)
-    num_vars = length(cached_subproblem_vars)
-
-    # Pre-build Set of state variables for O(1) lookup (CRITICAL for performance)
-    state_vars_set = Set(subproblem.ext[:first_stage_state].variables)
-
-    # Pre-allocate objective terms array
-    objective_terms = Vector{Any}(undef, num_scenarios)
-    scenario_objectives = Vector{Any}(undef, num_scenarios)  # Store for CVaR weight calculation
-
-    # Track variable mapping for results extraction (only if needed)
-    # Maps: destination_var => (source_var_name, scenario_number)
-    var_scenario_map = if !options.skip_results
-        d = Dict{JuMP.VariableRef, Tuple{String, Int}}()
-        sizehint!(d, num_vars * num_scenarios)
-        d
-    else
-        nothing
-    end
-
+    # Add all scenarios to the model
     @info "  [4/5] Adding scenarios to model..."
-    scenario_start_time = time()
-    # Process each scenario
-    for scen in 1:num_scenarios
-        # Show progress every 10% of scenarios
-        if scen == 1 || scen % max(1, num_scenarios ÷ 10) == 0 || scen == num_scenarios
-            elapsed = time() - scenario_start_time
-            @info "    Processing scenario $scen/$num_scenarios ($(round(elapsed, digits=1))s elapsed)"
-        end
+    scenario_objectives = add_all_scenarios!(
+        model, subproblem, inputs, second_stage_modifier,
+        scenario_data, options, var_scenario_map
+    )
 
-        # Call modifier to set parameter values for this scenario
-        second_stage_modifier(subproblem, inputs, scen)
-
-        # Extract parameter values for this scenario
-        parameter_values = extract_parameter_values(subproblem, parameter_vars)
-
-        # Add variables for this scenario
-        scenario_vars = @variable(model, [i in 1:num_vars])
-
-        # Build variable mapping with pre-allocated dictionary
-        # Now includes parameter substitution (parameters -> constants)
-        var_src_to_dest = Dict{JuMP.VariableRef, Any}()
-        sizehint!(var_src_to_dest, num_vars + num_state_variables(model) + length(parameter_vars))
-
-        # Map regular variables to scenario-specific variables
-        for (src, dest) in zip(cached_subproblem_vars, scenario_vars)
-            var_src_to_dest[src] = dest
-
-            # Store mapping for results extraction (only if needed)
-            if !options.skip_results
-                src_name = JuMP.name(src)
-                if !isempty(src_name)
-                    var_scenario_map[dest] = (src_name, scen)
-                end
-            end
-
-            # Optionally set names for debugging
-            if options.set_names
-                src_name = JuMP.name(src)
-                if !isempty(src_name)
-                    JuMP.set_name(dest, "$(src_name)_scen$(scen)")
-                end
-            end
-        end
-
-        # Map state variables
-        model_state = model.ext[:first_stage_state]
-        subproblem_state = subproblem.ext[:first_stage_state]
-        for idx in eachindex(model_state.variables)
-            var_src_to_dest[subproblem_state.variables[idx]] = model_state.variables[idx]
-        end
-
-        # Map parameter variables to their fixed values (constants) for this scenario
-        for (param_var, param_value) in zip(parameter_vars, parameter_values)
-            var_src_to_dest[param_var] = param_value
-        end
-
-        # Add constraints using cached structure
-        add_constraints_from_cache!(model, cached_constraint_info, var_src_to_dest, state_vars_set)
-
-        # Extract and store objective term
-        subproblem_objective = copy_and_replace_variables(
-            JuMP.objective_function(subproblem),
-            var_src_to_dest
-        )
-        scenario_objectives[scen] = subproblem_objective
-    end
-
+    # Build and set the objective function
     @info "  [5/5] Building objective and optimizing..."
-    # Build complete objective with appropriate risk measure
-    if options.risk_measure isa RiskNeutral
-        # Equal weights for risk-neutral case
-        for scen in 1:num_scenarios
-            objective_terms[scen] = (1 / num_scenarios) * scenario_objectives[scen]
-        end
-        JuMP.set_objective_function(model, first_stage_objective + sum(objective_terms))
-    elseif options.risk_measure isa CVaR
-        # For CVaR, we need to solve first to get scenario objective values,
-        # then compute weights. Instead, we'll use the explicit CVaR formulation.
-        # This adds auxiliary variables z and delta[scen] >= 0 for each scenario
-        # such that delta[scen] >= scenario_objectives[scen] - z
-        # The objective becomes: first_stage + (1-λ)*mean(scenarios) + λ*(z + 1/(1-α)*mean(deltas))
+    build_objective!(model, first_stage_objective, scenario_objectives, options)
 
-        @variable(model, z_cvar)
-        @variable(model, delta_cvar[1:num_scenarios] >= 0)
+    # Solve and extract results
+    return solve_and_extract_results(model, options, var_scenario_map)
+end
 
-        # Optionally set names for CVaR variables
-        if options.set_names
-            JuMP.set_name(z_cvar, "z_cvar")
-            for scen in 1:num_scenarios
-                JuMP.set_name(delta_cvar[scen], "delta_cvar_scen$(scen)")
-            end
-        end
+# ============================================================================
+# Helper Functions for Main Entry Point
+# ============================================================================
 
-        # Add constraints: delta[scen] >= scenario_objective[scen] - z
-        for scen in 1:num_scenarios
-            con = @constraint(model, delta_cvar[scen] >= scenario_objectives[scen] - z_cvar)
-            if options.set_names
-                JuMP.set_name(con, "cvar_constraint_scen$(scen)")
-            end
-        end
+function build_first_stage_model(state_variables_builder::Function, first_stage_builder::Function, inputs)
+    model = state_variables_builder(inputs, 1)
+    first_stage_builder(model, inputs)
+    return model
+end
 
-        alpha = options.risk_measure.alpha
-        lambda = options.risk_measure.lambda
+function build_second_stage_template(state_variables_builder::Function, second_stage_builder::Function, inputs)
+    subproblem = state_variables_builder(inputs, 1)
+    second_stage_builder(subproblem, inputs)
+    return subproblem
+end
 
-        # Objective: first_stage + (1-λ) * (1/N) * sum(scenarios) + λ * (z + 1/(1-α) * (1/N) * sum(deltas))
-        expected_value_term = sum((1 - lambda) / num_scenarios * scenario_objectives[scen] for scen in 1:num_scenarios)
-        cvar_term = lambda * (z_cvar + sum(delta_cvar[scen] / ((1 - alpha) * num_scenarios) for scen in 1:num_scenarios))
-
-        JuMP.set_objective_function(model, first_stage_objective + expected_value_term + cvar_term)
+function initialize_variable_map(scenario_data::ScenarioData, options::DeterministicEquivalentOptions)
+    if options.skip_results
+        return nothing
     else
-        error("Unsupported risk measure: $(typeof(options.risk_measure))")
+        num_vars = length(scenario_data.subproblem_vars)
+        var_map = Dict{JuMP.VariableRef, Tuple{String, Int}}()
+        sizehint!(var_map, num_vars * options.num_scenarios)
+        return var_map
+    end
+end
+
+function add_all_scenarios!(
+    model::JuMP.Model,
+    subproblem::JuMP.Model,
+    inputs,
+    second_stage_modifier::Function,
+    scenario_data::ScenarioData,
+    options::DeterministicEquivalentOptions,
+    var_scenario_map::Union{Dict, Nothing}
+)
+    scenario_objectives = Vector{Any}(undef, options.num_scenarios)
+    scenario_start_time = time()
+
+    for scen in 1:options.num_scenarios
+        # Show progress periodically
+        log_scenario_progress(scen, options.num_scenarios, scenario_start_time)
+
+        # Add this scenario to the model
+        scenario_objectives[scen] = add_scenario_to_model!(
+            model, subproblem, scen, inputs, second_stage_modifier,
+            scenario_data, options, var_scenario_map
+        )
     end
 
-    # Store the variable mapping in the model for fast results extraction (if needed)
-    if !options.skip_results
-        model.ext[:var_scenario_map] = var_scenario_map
-    end
+    return scenario_objectives
+end
 
+function log_scenario_progress(scenario::Int, num_scenarios::Int, start_time::Float64)
+    # Log at start, every 10%, and at end
+    if scenario == 1 || scenario % max(1, num_scenarios ÷ 10) == 0 || scenario == num_scenarios
+        elapsed = time() - start_time
+        @info "    Processing scenario $scenario/$num_scenarios ($(round(elapsed, digits=1))s elapsed)"
+    end
+end
+
+function solve_and_extract_results(
+    model::JuMP.Model,
+    options::DeterministicEquivalentOptions,
+    var_scenario_map::Union{Dict, Nothing}
+)
+    # Store variable mapping for results extraction (if needed)
+    !options.skip_results && (model.ext[:var_scenario_map] = var_scenario_map)
+
+    # Solve the model
     optimize_start = time()
     @info "    Calling solver..."
     JuMP.optimize!(model)
-    optimize_time = time() - optimize_start
-    @info "    Solver finished in $(round(optimize_time, digits=2))s"
+    @info "    Solver finished in $(round(time() - optimize_start, digits=2))s"
 
     treat_termination_status(model, options)
 
-    if options.skip_results
-        # Return minimal results - just objective value
-        results = Dict{Tuple{String, Int}, Any}()
-        results["objective", 0] = JuMP.objective_value(model)
-        return results
-    else
-        # Full results extraction
-        results = save_deterministic_results(model, num_scenarios)
-        results["objective", 0] = JuMP.objective_value(model)
-        return results
-    end
+    # Extract and return results
+    results = options.skip_results ? Dict{Tuple{String, Int}, Any}() : save_deterministic_results(model, options.num_scenarios)
+    results["objective", 0] = JuMP.objective_value(model)
+    return results
 end
 
-function copy_and_replace_variables(
-    src::Vector,
-    map::Dict{JuMP.VariableRef, Any},
-)
-    return copy_and_replace_variables.(src, Ref(map))
-end
+# ============================================================================
+# Variable Substitution
+# ============================================================================
 
-function copy_and_replace_variables(
-    src::Real,
-    ::Dict{JuMP.VariableRef, Any},
-)
-    return src
-end
+# Substitute variables in expressions, handling parameters (replaced with constants)
+substitute_variables(src::Vector, map::Dict) = substitute_variables.(src, Ref(map))
+substitute_variables(src::Real, ::Dict) = src
+substitute_variables(src::JuMP.VariableRef, map::Dict) = map[src]
 
-function copy_and_replace_variables(
-    src::JuMP.VariableRef,
-    src_to_dest_variable::Dict{JuMP.VariableRef, Any},
-)
-    return src_to_dest_variable[src]
-end
-
-function copy_and_replace_variables(
-    src::JuMP.GenericAffExpr,
-    src_to_dest_variable::Dict{JuMP.VariableRef, Any},
-)
-    # Build the new affine expression
-    # Start with the constant term
+function substitute_variables(src::JuMP.GenericAffExpr, var_map::Dict{JuMP.VariableRef, Any})
     new_constant = src.constant
     new_terms = Pair{VariableRef, Float64}[]
 
-    for (key, val) in src.terms
-        replacement = src_to_dest_variable[key]
+    for (var, coef) in src.terms
+        replacement = var_map[var]
+
         if replacement isa Real
-            # Parameter variable replaced with constant - add to constant term
-            new_constant += val * replacement
+            # Parameter -> constant: add to constant term
+            new_constant += coef * replacement
         else
-            # Regular variable replacement
-            push!(new_terms, replacement => val)
+            # Variable -> variable: add to terms
+            push!(new_terms, replacement => coef)
         end
     end
 
     return JuMP.GenericAffExpr(new_constant, new_terms)
 end
 
-function copy_and_replace_variables(
-    src::JuMP.GenericQuadExpr,
-    src_to_dest_variable::Dict{JuMP.VariableRef, Any},
-)
-    # Handle quadratic expressions with parameter substitution
-    new_aff = copy_and_replace_variables(src.aff, src_to_dest_variable)
+function substitute_variables(src::JuMP.GenericQuadExpr, var_map::Dict{JuMP.VariableRef, Any})
+    new_aff = substitute_variables(src.aff, var_map)
     new_quad_terms = Pair{UnorderedPair{VariableRef}, Float64}[]
 
     for (pair, coef) in src.terms
-        replacement_a = src_to_dest_variable[pair.a]
-        replacement_b = src_to_dest_variable[pair.b]
+        replacement_a = var_map[pair.a]
+        replacement_b = var_map[pair.b]
 
         if replacement_a isa Real && replacement_b isa Real
-            # Both are parameters - add constant to affine part
+            # Both parameters: becomes constant
             new_aff += coef * replacement_a * replacement_b
         elseif replacement_a isa Real
-            # First is parameter, second is variable - becomes linear term
+            # One parameter: becomes linear
             new_aff += coef * replacement_a * replacement_b
         elseif replacement_b isa Real
-            # Second is parameter, first is variable - becomes linear term
+            # One parameter: becomes linear
             new_aff += coef * replacement_b * replacement_a
         else
-            # Both are variables - keep as quadratic term
+            # Both variables: stays quadratic
             push!(new_quad_terms, UnorderedPair{VariableRef}(replacement_a, replacement_b) => coef)
         end
     end
 
     return JuMP.GenericQuadExpr(new_aff, new_quad_terms)
-end
-
-function is_state_variable(var, model::JuMP.Model)
-    return var isa JuMP.VariableRef &&
-           var in model.ext[:first_stage_state].variables
-end
-
-function num_state_variables(model::JuMP.Model)
-    return length(model.ext[:first_stage_state].variables)
-end
-
-function all_variables_but_state(model::JuMP.Model)
-    return setdiff(
-        JuMP.all_variables(model),
-        model.ext[:first_stage_state].variables,
-    )
-end
-
-function all_variables_but_state_and_parameters(model::JuMP.Model, parameter_vars::Vector{JuMP.VariableRef})
-    all_vars = JuMP.all_variables(model)
-    state_vars = model.ext[:first_stage_state].variables
-    # Remove both state and parameter variables
-    return setdiff(all_vars, union(Set(state_vars), Set(parameter_vars)))
-end
-
-function identify_parameter_variables(model::JuMP.Model)
-    parameter_vars = JuMP.VariableRef[]
-    for var in JuMP.all_variables(model)
-        # Check if this variable has a MOI.Parameter constraint
-        var_index = JuMP.index(var)
-        moi_model = JuMP.backend(model)
-        # Try to get the constraint type - parameters have VariableIndex-in-Parameter constraints
-        ci_type = MOI.ConstraintIndex{MOI.VariableIndex, MOI.Parameter{Float64}}
-        ci = ci_type(var_index.value)
-        if MOI.is_valid(moi_model, ci)
-            push!(parameter_vars, var)
-        end
-    end
-    return parameter_vars
-end
-
-function extract_parameter_values(model::JuMP.Model, parameter_vars::Vector{JuMP.VariableRef})
-    values = Float64[]
-    for var in parameter_vars
-        # Get the current parameter value
-        var_index = JuMP.index(var)
-        moi_model = JuMP.backend(model)
-        ci_type = MOI.ConstraintIndex{MOI.VariableIndex, MOI.Parameter{Float64}}
-        ci = ci_type(var_index.value)
-        param_set = MOI.get(moi_model, MOI.ConstraintSet(), ci)
-        push!(values, param_set.value)
-    end
-    return values
-end
-
-# Cache constraint structure to avoid repeated model inspection
-struct ConstraintCache
-    constraint_types::Vector{Tuple{DataType, DataType}}
-    constraints::Vector{Vector{Any}}  # Stores constraint references for each type
-end
-
-function cache_constraint_structure(subproblem::JuMP.Model)
-    constraint_types = JuMP.list_of_constraint_types(subproblem)
-    constraints = Vector{Vector{Any}}(undef, length(constraint_types))
-
-    for (i, (F, S)) in enumerate(constraint_types)
-        constraints[i] = collect(JuMP.all_constraints(subproblem, F, S))
-    end
-
-    return ConstraintCache(constraint_types, constraints)
-end
-
-function add_constraints_from_cache!(
-    model::JuMP.Model,
-    cache::ConstraintCache,
-    var_src_to_dest::Dict{JuMP.VariableRef, Any},
-    state_vars_set::Set{JuMP.VariableRef}
-)
-    for (type_idx, (F, S)) in enumerate(cache.constraint_types)
-        # Skip MOI.Parameter constraints - they're not real constraints
-        # and direct_model doesn't support them
-        if S <: MOI.Parameter
-            continue
-        end
-
-        # Collect all valid constraints for this type (skip state variable bounds)
-        constraint_list = cache.constraints[type_idx]
-
-        # Pre-allocate arrays for vectorized constraint addition
-        funcs = Vector{Any}()
-        sets = Vector{Any}()
-        sizehint!(funcs, length(constraint_list))
-        sizehint!(sets, length(constraint_list))
-
-        for con in constraint_list
-            obj = JuMP.constraint_object(con)
-            # Use Set for O(1) lookup instead of O(N) linear search
-            if obj.func isa JuMP.VariableRef && obj.func in state_vars_set
-                # Skip state variable bounds - already in model
-                continue
-            end
-            new_func = copy_and_replace_variables(obj.func, var_src_to_dest)
-            push!(funcs, new_func)
-            push!(sets, obj.set)
-        end
-
-        # Add all constraints of this type at once
-        if !isempty(funcs)
-            # Add constraints one by one, normalizing if needed
-            # (JuMP.@constraint automatically normalizes, so we use it)
-            for (func, set) in zip(funcs, sets)
-                JuMP.add_constraint(model, JuMP.build_constraint(error, func, set))
-            end
-        end
-    end
-    return nothing
 end
 
