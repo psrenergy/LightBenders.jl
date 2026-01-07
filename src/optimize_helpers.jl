@@ -26,6 +26,11 @@ end
 function treat_termination_status(model::JuMP.Model, options::DeterministicEquivalentOptions)
     file_name = "det_eq_model"
     info_msg = "Deterministic equivalent model finished with termination status: $(termination_status(model))"
+    if !isnothing(options.debugging_options.callback)
+        treat_logs_dir(options.debugging_options.logs_dir)
+        file_path = joinpath(options.debugging_options.logs_dir, string(file_name, ".lp"))
+        options.debugging_options.callback(model, file_path)
+    end
     treat_termination_status(model, info_msg, file_name, options.debugging_options)
     return nothing
 end
@@ -68,7 +73,8 @@ function treat_termination_status(model::JuMP.Model, info_msg::String, file_name
     file_name
     infeasible_file_name = string("infeasible_", file_name)
     logs_dir = debugging_options.logs_dir
-    if debugging_options.write_lp
+    # Only use the slow MOI writer if no custom callback is provided
+    if debugging_options.write_lp && isnothing(debugging_options.callback)
         treat_logs_dir(logs_dir)
         JuMP.write_to_file(model, joinpath(logs_dir, string(file_name, ".lp")))
     end
