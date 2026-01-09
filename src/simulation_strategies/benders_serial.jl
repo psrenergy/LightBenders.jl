@@ -21,8 +21,12 @@ function serial_benders_simulate(;
     stage = 1
     state_variables_model = state_variables_builder(inputs, stage)
     model = first_stage_builder(state_variables_model, inputs)
-    create_epigraph_variables!(model, policy.policy_training_options)
-    add_all_cuts!(model, policy.pool[1], policy.policy_training_options)
+
+    # Detect objective sense from first-stage model
+    objective_sense = JuMP.objective_sense(model)
+
+    create_epigraph_variables!(model, policy.policy_training_options, objective_sense)
+    add_all_cuts!(model, policy.pool[1], policy.policy_training_options, objective_sense)
 
     store_retry_data(model, simulation_options)
     optimize_with_retry(model)

@@ -184,6 +184,98 @@ function newsvendor_deterministic_with_names()
     @test det_eq_results["objective", 0] ≈ -70 atol = 1e-2
 end
 
+# ============================================================================
+# Maximization problem tests
+# ============================================================================
+
+function first_stage_builder_max(sp, inputs)
+    bought = sp[:bought]
+
+    @constraint(sp, bought <= inputs.max_storage)
+    # Maximize negative cost (equivalent to minimizing cost)
+    @objective(sp, Max, -bought * inputs.buy_price)
+    return sp
+end
+
+function second_stage_builder_max(sp, inputs)
+    bought = sp[:bought]
+
+    @variable(sp, dem in MOI.Parameter(0.0))
+    @variable(sp, sold >= 0)
+    @variable(sp, returned >= 0)
+    @constraint(sp, sold_dem_con, sold <= dem)
+    @constraint(sp, balance, sold + returned <= bought)
+    # Maximize revenue (instead of minimizing negative revenue)
+    @objective(sp, Max, sold * inputs.sell_price + returned * inputs.return_price)
+    return sp
+end
+
+function newsvendor_benders_max(;
+    cut_strategy = LightBenders.CutStrategy.MultiCut,
+    risk_measure = LightBenders.RiskNeutral(),
+    state_variables_builder_func = state_variables_builder,
+    verbose = true,
+)
+    inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
+    num_scenarios = length(inputs.demand)
+
+    policy_training_options = LightBenders.PolicyTrainingOptions(;
+        num_scenarios = num_scenarios,
+        upper_bound = 1e6,  # Upper bound for Max problems
+        implementation_strategy = LightBenders.SerialTraining(),
+        stopping_rule = [LightBenders.GapWithMinimumNumberOfIterations(;
+            abstol = 1e-1,
+            min_iterations = 2,
+        )],
+        cut_strategy = cut_strategy,
+        risk_measure = risk_measure,
+        verbose = verbose,
+    )
+
+    policy = LightBenders.train(;
+        state_variables_builder = state_variables_builder_func,
+        first_stage_builder = first_stage_builder_max,
+        second_stage_builder = second_stage_builder_max,
+        second_stage_modifier,
+        inputs = inputs,
+        policy_training_options,
+    )
+
+    results = LightBenders.simulate(;
+        state_variables_builder = state_variables_builder_func,
+        first_stage_builder = first_stage_builder_max,
+        second_stage_builder = second_stage_builder_max,
+        second_stage_modifier,
+        inputs,
+        policy,
+        simulation_options = LightBenders.SimulationOptions(
+            policy_training_options;
+            implementation_strategy = LightBenders.BendersSerialSimulation(),
+        ),
+    )
+
+    return policy, results
+end
+
+function newsvendor_deterministic_max()
+    inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
+    num_scenarios = length(inputs.demand)
+
+    options = LightBenders.DeterministicEquivalentOptions(; num_scenarios = num_scenarios)
+
+    det_eq_results = LightBenders.deterministic_equivalent(;
+        state_variables_builder,
+        first_stage_builder = first_stage_builder_max,
+        second_stage_builder = second_stage_builder_max,
+        second_stage_modifier,
+        inputs,
+        options,
+    )
+
+    # Expected: maximize profit = 70 (same magnitude as min problem, opposite sign)
+    @test det_eq_results["objective", 0] ≈ 70 atol = 1e-2
+end
+
 function test_newsvendor_benders()
     @testset "Benders Newsvendor single cut risk neutral" begin
         policy, results = newsvendor_benders(; cut_strategy = LightBenders.CutStrategy.SingleCut)
@@ -267,6 +359,22 @@ function test_newsvendor_benders()
     end
     @testset "Deterministic equivalent Newsvendor with set_names" begin
         newsvendor_deterministic_with_names()
+    end
+    # Maximization tests
+    @testset "Benders Newsvendor Max single cut risk neutral" begin
+        policy, results = newsvendor_benders_max(; cut_strategy = LightBenders.CutStrategy.SingleCut)
+        @test LightBenders.lower_bound(policy) ≈ 70
+        @test LightBenders.upper_bound(policy) ≈ 70
+        @test results["objective", 0] ≈ 70 atol = 1e-2
+    end
+    @testset "Benders Newsvendor Max multi cut risk neutral" begin
+        policy, results = newsvendor_benders_max(; cut_strategy = LightBenders.CutStrategy.MultiCut)
+        @test LightBenders.lower_bound(policy) ≈ 70
+        @test LightBenders.upper_bound(policy) ≈ 70
+        @test results["objective", 0] ≈ 70 atol = 1e-2
+    end
+    @testset "Deterministic equivalent Newsvendor Max" begin
+        newsvendor_deterministic_max()
     end
 end
 

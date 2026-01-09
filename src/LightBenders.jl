@@ -8,6 +8,7 @@ using ProgressTables
 using Statistics
 
 const JQM = JobQueueMPI
+const MOI = JuMP.MOI
 
 # Keys aspects of the algorithm
 include("debugging_options.jl")

@@ -7,6 +7,7 @@ Base.@kwdef mutable struct DeterministicEquivalentOptions
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     set_names::Bool = false  # Set to true to name variables (useful for debugging, but slower)
     skip_results::Bool = false  # Set to true to skip results extraction (useful when only writing LP files)
+    relaxed::Bool = false  # Set to true to relax integrality constraints (LP relaxation)
 end
 
 # ============================================================================
@@ -225,10 +226,12 @@ function build_cvar_objective(
     scenario_objectives::Vector,
     num_scenarios::Int,
     cvar::CVaR,
-    set_names::Bool
+    set_names::Bool,
+    sense::MOI.OptimizationSense,
 )
     # CVaR formulation: auxiliary variables z and delta[scen] >= 0
-    # Constraints: delta[scen] >= scenario_objective[scen] - z
+    # For Min: Constraints: delta[scen] >= scenario_objective[scen] - z (captures worst high costs)
+    # For Max: Constraints: delta[scen] >= z - scenario_objective[scen] (captures worst low profits)
     # Objective: first_stage + (1-λ) * mean(scenarios) + λ * (z + 1/(1-α) * mean(deltas))
 
     @variable(model, z_cvar)
@@ -242,9 +245,13 @@ function build_cvar_objective(
         end
     end
 
-    # Add CVaR constraints
+    # Add CVaR constraints (direction depends on optimization sense)
     for scen in 1:num_scenarios
-        con = @constraint(model, delta_cvar[scen] >= scenario_objectives[scen] - z_cvar)
+        if is_minimization(sense)
+            con = @constraint(model, delta_cvar[scen] >= scenario_objectives[scen] - z_cvar)
+        else
+            con = @constraint(model, delta_cvar[scen] >= z_cvar - scenario_objectives[scen])
+        end
         set_names && JuMP.set_name(con, "cvar_constraint_scen$(scen)")
     end
 
@@ -260,13 +267,14 @@ function build_objective!(
     model::JuMP.Model,
     first_stage_objective,
     scenario_objectives::Vector,
-    options::DeterministicEquivalentOptions
+    options::DeterministicEquivalentOptions,
+    sense::MOI.OptimizationSense,
 )
     objective = if options.risk_measure isa RiskNeutral
         build_risk_neutral_objective(first_stage_objective, scenario_objectives, options.num_scenarios)
     elseif options.risk_measure isa CVaR
         build_cvar_objective(model, first_stage_objective, scenario_objectives,
-                           options.num_scenarios, options.risk_measure, options.set_names)
+                           options.num_scenarios, options.risk_measure, options.set_names, sense)
     else
         error("Unsupported risk measure: $(typeof(options.risk_measure))")
     end
@@ -295,6 +303,9 @@ function deterministic_equivalent(;
     model = build_first_stage_model(state_variables_builder, first_stage_builder, inputs)
     first_stage_objective = JuMP.objective_function(model)
 
+    # Detect objective sense from first-stage model
+    objective_sense = JuMP.objective_sense(model)
+
     # Build and cache second-stage template
     @info "  [2/5] Building subproblem template..."
     subproblem = build_second_stage_template(state_variables_builder, second_stage_builder, inputs)
@@ -314,7 +325,7 @@ function deterministic_equivalent(;
 
     # Build and set the objective function
     @info "  [5/5] Building objective and optimizing..."
-    build_objective!(model, first_stage_objective, scenario_objectives, options)
+    build_objective!(model, first_stage_objective, scenario_objectives, options, objective_sense)
 
     # Solve and extract results
     return solve_and_extract_results(model, options, var_scenario_map)
@@ -388,6 +399,12 @@ function solve_and_extract_results(
 )
     # Store variable mapping for results extraction (if needed)
     !options.skip_results && (model.ext[:var_scenario_map] = var_scenario_map)
+
+    # Relax integrality constraints if requested
+    if options.relaxed
+        @info "    Relaxing integrality constraints..."
+        JuMP.relax_integrality(model)
+    end
 
     # Solve the model
     optimize_start = time()
