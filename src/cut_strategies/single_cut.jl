@@ -84,16 +84,20 @@ function cvar_single_cut!(
     return nothing
 end
 
-function create_epigraph_single_cut_variables!(model::JuMP.Model, policy_training_options)
-    JuMP.@variable(model, epi_single_cut, lower_bound = policy_training_options.lower_bound)
+function create_epigraph_single_cut_variables!(model::JuMP.Model, policy_training_options, sense::MOI.OptimizationSense)
+    if is_minimization(sense)
+        JuMP.@variable(model, epi_single_cut, lower_bound = policy_training_options.lower_bound)
+    else
+        JuMP.@variable(model, epi_single_cut, upper_bound = policy_training_options.upper_bound)
+    end
     JuMP.set_objective_coefficient(model, epi_single_cut, (1.0 - policy_training_options.discount_rate))
     return nothing
 end
 
-function add_all_cuts!(model::JuMP.Model, pool, policy_training_options)
+function add_all_cuts!(model::JuMP.Model, pool, policy_training_options, sense::MOI.OptimizationSense)
     epi_single_cut = model[:epi_single_cut]
     for i in 1:number_of_cuts(pool)
-        add_cut(model, epi_single_cut, pool.coefs[i], pool.rhs[i])
+        add_cut(model, epi_single_cut, pool.coefs[i], pool.rhs[i], sense)
     end
     return nothing
 end

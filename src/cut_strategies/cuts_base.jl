@@ -64,22 +64,28 @@ function get_cut(model, states)
 end
 
 """
-    add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T) where T <: Real
+    add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T, sense::MOI.OptimizationSense) where T <: Real
 
 Add a cut to a Model and return the constraint reference.
+For minimization problems, cuts are lower bounds: alpha >= rhs + coefs * x
+For maximization problems, cuts are upper bounds: alpha <= rhs + coefs * x
 """
-function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T) where {T <: Real}
+function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::Vector{T}, rhs::T, sense::MOI.OptimizationSense) where {T <: Real}
     alpha = epigraph_variable
     cache = model.ext[:first_stage_state]::StateCache
-    cref = @constraint(model, alpha >= rhs + dot(coefs, cache.variables))
+    if is_minimization(sense)
+        cref = @constraint(model, alpha >= rhs + dot(coefs, cache.variables))
+    else
+        cref = @constraint(model, alpha <= rhs + dot(coefs, cache.variables))
+    end
     return cref
 end
 
-function create_epigraph_variables!(model::JuMP.Model, policy_training_options)
+function create_epigraph_variables!(model::JuMP.Model, policy_training_options, sense::MOI.OptimizationSense)
     if policy_training_options.cut_strategy == CutStrategy.SingleCut
-        return create_epigraph_single_cut_variables!(model, policy_training_options)
+        return create_epigraph_single_cut_variables!(model, policy_training_options, sense)
     elseif policy_training_options.cut_strategy == CutStrategy.MultiCut
-        return create_epigraph_multi_cut_variables!(model, policy_training_options)
+        return create_epigraph_multi_cut_variables!(model, policy_training_options, sense)
     end
     error("Not implemented.")
     return nothing

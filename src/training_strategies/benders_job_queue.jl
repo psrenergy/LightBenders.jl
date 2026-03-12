@@ -50,7 +50,11 @@ function job_queue_benders_train(;
     stage = 1
     state_variables_model = state_variables_builder(inputs, stage)
     first_stage_model = first_stage_builder(state_variables_model, inputs)
-    create_epigraph_variables!(first_stage_model, policy_training_options)
+
+    # Detect objective sense from first-stage model
+    objective_sense = JuMP.objective_sense(first_stage_model)
+
+    create_epigraph_variables!(first_stage_model, policy_training_options, objective_sense)
     if policy_training_options.mip_options.run_mip_after_iteration > 0
         undo_relax = relax_integrality(first_stage_model)
         relaxed = true
@@ -74,7 +78,7 @@ function job_queue_benders_train(;
                 relaxed = false
             end
         end
-        add_all_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
+        add_all_cuts!(first_stage_model, iteration_pool[t], policy_training_options, objective_sense)
         store_retry_data(first_stage_model, policy_training_options)
         optimize_with_retry(first_stage_model)
         treat_termination_status(first_stage_model, policy_training_options, t, progress.current_iteration)
@@ -131,7 +135,7 @@ function job_queue_benders_train(;
         end
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
-        if has_converged(convergence_result) || progress.LB[progress.current_iteration] > progress.UB[progress.current_iteration]
+        if has_converged(convergence_result)
             if policy_training_options.verbose
                 finish_training!(progress, convergence_result)
             end

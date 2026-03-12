@@ -8,7 +8,8 @@ struct JobQueueTraining <: AbstractTrainingImplementation end
 """
 Base.@kwdef mutable struct PolicyTrainingOptions
     num_scenarios::Int
-    lower_bound::Real = 0.0
+    lower_bound::Real = 0.0  # Used for Min problems (lower bound on future cost)
+    upper_bound::Real = 0.0  # Used for Max problems (upper bound on future cost)
     discount_rate::Real = 0.0
     verbose::Bool = true
     implementation_strategy::AbstractTrainingImplementation = SerialTraining()
@@ -19,6 +20,20 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     debugging_options::DebuggingOptions = DebuggingOptions()
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
 end
+
+"""
+    is_minimization(sense::MOI.OptimizationSense)
+
+Returns true if the optimization sense is minimization.
+"""
+is_minimization(sense::MOI.OptimizationSense) = sense == MOI.MIN_SENSE
+
+"""
+    is_maximization(sense::MOI.OptimizationSense)
+
+Returns true if the optimization sense is maximization.
+"""
+is_maximization(sense::MOI.OptimizationSense) = sense == MOI.MAX_SENSE
 
 """
     train(;

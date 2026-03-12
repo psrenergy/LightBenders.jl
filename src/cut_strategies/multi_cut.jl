@@ -32,11 +32,15 @@ function store_cut!(
     return nothing
 end
 
-function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training_options)
+function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training_options, sense::MOI.OptimizationSense)
     model.obj_dict[:epi_multi_cut] = Vector{JuMP.VariableRef}(undef, policy_training_options.num_scenarios)
     alphas = model.obj_dict[:epi_multi_cut]
     for scen in 1:policy_training_options.num_scenarios
-        epi_multi_cut = JuMP.@variable(model, lower_bound = policy_training_options.lower_bound)
+        if is_minimization(sense)
+            epi_multi_cut = JuMP.@variable(model, lower_bound = policy_training_options.lower_bound)
+        else
+            epi_multi_cut = JuMP.@variable(model, upper_bound = policy_training_options.upper_bound)
+        end
         alphas[scen] = epi_multi_cut
     end
     if policy_training_options.risk_measure isa CVaR
@@ -51,6 +55,7 @@ function add_multi_cut_risk_neutral_cuts!(
     alphas::Vector{JuMP.VariableRef},
     pool::CutPoolMultiCut,
     policy_training_options,
+    sense::MOI.OptimizationSense,
 )
     for scen in 1:policy_training_options.num_scenarios
         JuMP.set_objective_coefficient(
@@ -59,7 +64,7 @@ function add_multi_cut_risk_neutral_cuts!(
             (1.0 - policy_training_options.discount_rate) / policy_training_options.num_scenarios,
         )
         for i in 1:length(pool.cuts)
-            add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen])
+            add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen], sense)
         end
     end
     return nothing
@@ -70,6 +75,7 @@ function add_multi_cut_cvar_cuts!(
     alphas::Vector{JuMP.VariableRef},
     pool::CutPoolMultiCut,
     policy_training_options,
+    sense::MOI.OptimizationSense,
 )
     discount_rate_multiplier = (1.0 - policy_training_options.discount_rate)
     z_explicit_cvar = model[:z_explicit_cvar]
@@ -81,7 +87,7 @@ function add_multi_cut_cvar_cuts!(
         discount_rate_multiplier * (policy_training_options.risk_measure.lambda),
     )
     for scen in 1:policy_training_options.num_scenarios
-        # (1 - λ)/L * sum(alphas) 
+        # (1 - λ)/L * sum(alphas)
         JuMP.set_objective_coefficient(
             model,
             alphas[scen],
@@ -99,17 +105,17 @@ function add_multi_cut_cvar_cuts!(
         JuMP.@constraint(model, delta_explicit_cvar[scen] >= alphas[scen] - z_explicit_cvar)
         # Add all cuts
         for i in 1:length(pool.cuts)
-            add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen])
+            add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen], sense)
         end
     end
 end
 
-function add_all_cuts!(model::JuMP.Model, pool::CutPoolMultiCut, policy_training_options)
+function add_all_cuts!(model::JuMP.Model, pool::CutPoolMultiCut, policy_training_options, sense::MOI.OptimizationSense)
     alphas = model[:epi_multi_cut]
     if isa(policy_training_options.risk_measure, RiskNeutral)
-        add_multi_cut_risk_neutral_cuts!(model, alphas, pool, policy_training_options)
+        add_multi_cut_risk_neutral_cuts!(model, alphas, pool, policy_training_options, sense)
     elseif isa(policy_training_options.risk_measure, CVaR)
-        add_multi_cut_cvar_cuts!(model, alphas, pool, policy_training_options)
+        add_multi_cut_cvar_cuts!(model, alphas, pool, policy_training_options, sense)
     end
     return nothing
 end
