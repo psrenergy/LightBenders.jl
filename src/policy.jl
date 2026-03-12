@@ -21,7 +21,15 @@ function second_stage_upper_bound_contribution(policy_training_options::PolicyTr
     elseif policy_training_options.risk_measure isa CVaR
         alpha = policy_training_options.risk_measure.alpha
         lambda = policy_training_options.risk_measure.lambda
-        weights = build_cvar_weights(objectives, alpha, lambda)
-        return dot(weights, objectives)
+        if isnothing(policy_training_options.scenario_map)
+            weights = build_cvar_weights(objectives, alpha, lambda)
+            return dot(weights, objectives)
+        else
+            scenario_map = policy_training_options.scenario_map
+            group_obj, group_counts = aggregate_by_group(objectives, scenario_map)
+            weights_on_groups = build_cvar_weights(group_obj, alpha, lambda)
+            subproblem_weights = [weights_on_groups[scenario_map[s]] / group_counts[scenario_map[s]] for s in eachindex(scenario_map)]
+            return dot(subproblem_weights, objectives)
+        end
     end
 end

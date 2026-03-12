@@ -73,12 +73,29 @@ function cvar_single_cut!(
     options,
     t::Int,
 )
-    weights = build_cvar_weights(local_cuts.obj, options.risk_measure.alpha, options.risk_measure.lambda)
-    obj = dot(weights, local_cuts.obj)
-    rhs = dot(weights, local_cuts.rhs)
-    coefs = zeros(Float64, length(local_cuts.coefs[1]))
-    for j in eachindex(weights)
-        coefs .+= weights[j] .* local_cuts.coefs[j]
+    if isnothing(options.scenario_map)
+        # Existing path — unchanged
+        weights = build_cvar_weights(local_cuts.obj, options.risk_measure.alpha, options.risk_measure.lambda)
+        obj = dot(weights, local_cuts.obj)
+        rhs = dot(weights, local_cuts.rhs)
+        coefs = zeros(Float64, length(local_cuts.coefs[1]))
+        for j in eachindex(weights)
+            coefs .+= weights[j] .* local_cuts.coefs[j]
+        end
+    else
+        # Group-aware path
+        scenario_map = options.scenario_map
+        group_obj, group_counts = aggregate_by_group(local_cuts.obj, scenario_map)
+        group_rhs, _ = aggregate_by_group(local_cuts.rhs, scenario_map)
+        weights_on_groups = build_cvar_weights(group_obj, options.risk_measure.alpha, options.risk_measure.lambda)
+        # Expand group weights to subproblem weights
+        subproblem_weights = [weights_on_groups[scenario_map[s]] / group_counts[scenario_map[s]] for s in eachindex(scenario_map)]
+        obj = dot(subproblem_weights, local_cuts.obj)
+        rhs = dot(subproblem_weights, local_cuts.rhs)
+        coefs = zeros(Float64, length(local_cuts.coefs[1]))
+        for j in eachindex(subproblem_weights)
+            coefs .+= subproblem_weights[j] .* local_cuts.coefs[j]
+        end
     end
     store_cut!(pool[t-1], coefs, state, rhs, obj)
     return nothing
