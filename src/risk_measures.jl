@@ -69,6 +69,22 @@ mutable struct CVaR <: AbstractRiskMeasure
     end
 end
 
+"""
+    aggregate_by_group(values::Vector{Float64}, scenario_map::Vector{Int})
+
+Sum `values` within each group defined by `scenario_map`. Returns `(group_totals, group_counts)`.
+"""
+function aggregate_by_group(values::Vector{Float64}, scenario_map::Vector{Int})
+    n_groups = maximum(scenario_map)
+    group_totals = zeros(Float64, n_groups)
+    group_counts = zeros(Int, n_groups)
+    for (s, g) in enumerate(scenario_map)
+        group_totals[g] += values[s]
+        group_counts[g] += 1
+    end
+    return group_totals, group_counts
+end
+
 function build_cvar_weights(
     objectives::Vector{Float64},
     alpha::Real,

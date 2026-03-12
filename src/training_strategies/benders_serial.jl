@@ -97,6 +97,24 @@ end
 function validate_benders_training_options(policy_training_options::PolicyTrainingOptions)
     num_errors = 0
 
+    if !isnothing(policy_training_options.scenario_map)
+        sm = policy_training_options.scenario_map
+        if length(sm) != policy_training_options.num_scenarios
+            @error("scenario_map length ($(length(sm))) must equal num_scenarios ($(policy_training_options.num_scenarios)).")
+            num_errors += 1
+        end
+        if length(sm) > 0
+            if minimum(sm) != 1
+                @error("scenario_map must start at 1, got minimum $(minimum(sm)).")
+                num_errors += 1
+            end
+            if sort(unique(sm)) != collect(1:maximum(sm))
+                @error("scenario_map must use contiguous integers 1:$(maximum(sm)), got gaps.")
+                num_errors += 1
+            end
+        end
+    end
+
     if num_errors > 0
         error("Validation of policy training options failed.")
     end

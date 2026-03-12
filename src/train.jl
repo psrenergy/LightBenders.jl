@@ -18,6 +18,21 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     mip_options::MIPOptions = MIPOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
+    scenario_map::Union{Vector{Int}, Nothing} = nothing
+end
+
+"""
+    num_groups(options::PolicyTrainingOptions)
+
+Return the number of logical scenario groups. If `scenario_map` is `nothing`,
+returns `num_scenarios` (each subproblem is its own group).
+"""
+function num_groups(options::PolicyTrainingOptions)
+    if isnothing(options.scenario_map)
+        return options.num_scenarios
+    else
+        return maximum(options.scenario_map)
+    end
 end
 
 """
