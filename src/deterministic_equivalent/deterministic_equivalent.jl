@@ -7,6 +7,7 @@ Base.@kwdef mutable struct DeterministicEquivalentOptions
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     set_names::Bool = false  # Set to true to name variables (useful for debugging, but slower)
     skip_results::Bool = false  # Set to true to skip results extraction (useful when only writing LP files)
+    relaxed::Bool = false # If true, relax integrality in the first stage
 end
 
 # ============================================================================
@@ -315,6 +316,11 @@ function deterministic_equivalent(;
     # Build and set the objective function
     @info "  [5/5] Building objective and optimizing..."
     build_objective!(model, first_stage_objective, scenario_objectives, options)
+
+    if options.relaxed
+        @info "  Relaxing integrality constraints in the first stage..."
+        relax_integrality(model)
+    end
 
     # Solve and extract results
     return solve_and_extract_results(model, options, var_scenario_map)
