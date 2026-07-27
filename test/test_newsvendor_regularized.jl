@@ -81,6 +81,7 @@ function newsvendor_benders(;
     risk_measure = LightBenders.RiskNeutral(),
     regularization = LightBenders.NoRegularization(),
     rebuild_second_stage_per_scenario = false,
+    progress_log_file = "",
     verbose = false,
 )
     inputs = Inputs(5, 10, 1, 100, [10, 20, 30])
@@ -98,6 +99,7 @@ function newsvendor_benders(;
         risk_measure = risk_measure,
         regularization = regularization,
         rebuild_second_stage_per_scenario = rebuild_second_stage_per_scenario,
+        progress_log_file = progress_log_file,
         verbose = verbose,
     )
 
@@ -179,6 +181,19 @@ function test_level_set_regularization()
     @testset "LevelSetRegularization validates alpha" begin
         @test_throws ArgumentError LightBenders.LevelSetRegularization(alpha = 0.0)
         @test_throws ArgumentError LightBenders.LevelSetRegularization(alpha = 1.0)
+    end
+end
+
+function test_progress_log_file()
+    @testset "Progress log file streams iterations" begin
+        file = joinpath(mktempdir(), "training.log")
+        policy, _ = newsvendor_benders(; progress_log_file = file)
+        @test isfile(file)
+        lines = readlines(file)
+        # header + one row per iteration + convergence comment
+        @test occursin("lower_bound", lines[1])
+        @test length(lines) == policy.progress.current_iteration + 2
+        @test startswith(lines[end], "#")
     end
 end
 

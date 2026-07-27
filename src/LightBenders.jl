@@ -4,6 +4,7 @@ using EnumX
 using JobQueueMPI
 using JuMP
 using LinearAlgebra
+using Printf
 using ProgressTables
 using Statistics
 

@@ -167,15 +167,11 @@ function job_queue_benders_train(;
             progress.UB[progress.current_iteration] = progress.best_UB
         end
         progress.time_iteration[progress.current_iteration] = time() - progress.start_time
-        if policy_training_options.verbose
-            report_current_bounds(progress)
-        end
+        report_current_bounds(progress)
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result) || progress.LB[progress.current_iteration] > progress.UB[progress.current_iteration]
-            if policy_training_options.verbose
-                finish_training!(progress, convergence_result)
-            end
+            finish_training!(progress, convergence_result)
             JQM.send_termination_message()
             break
         end

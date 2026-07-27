@@ -111,15 +111,11 @@ function serial_benders_train(;
         store_cut!(iteration_pool, local_pools, state, policy_training_options, t)
 
         # check convergence
-        if policy_training_options.verbose
-            report_current_bounds(progress)
-        end
+        report_current_bounds(progress)
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result) || progress.LB[progress.current_iteration] > progress.UB[progress.current_iteration]
-            if policy_training_options.verbose
-                finish_training!(progress, convergence_result)
-            end
+            finish_training!(progress, convergence_result)
             break
         end
     end

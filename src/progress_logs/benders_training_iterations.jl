@@ -6,6 +6,8 @@ Base.@kwdef mutable struct BendersTrainingIterationsLog <: AbstractProgressLog
     start_time::Float64 = time()
     time_iteration::Vector{Float64} = Float64[]
     progress_table::IncrementalProgressTable
+    verbose::Bool = true
+    log_io::Union{IOStream, Nothing} = nothing
 end
 
 function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOptions)
@@ -32,7 +34,25 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
         initialize(progress_table)
     end
 
-    return BendersTrainingIterationsLog(progress_table = progress_table)
+    # Optional live progress file: one row per iteration, flushed as produced,
+    # so long trainings can be followed with `tail -f`.
+    log_io = nothing
+    if !isempty(policy_training_options.progress_log_file)
+        dir = dirname(policy_training_options.progress_log_file)
+        !isempty(dir) && mkpath(dir)
+        log_io = open(policy_training_options.progress_log_file, "w")
+        println(
+            log_io,
+            @sprintf("%9s  %16s  %16s  %12s  %10s", "iteration", "lower_bound", "upper_bound", "gap", "time_s")
+        )
+        flush(log_io)
+    end
+
+    return BendersTrainingIterationsLog(;
+        progress_table = progress_table,
+        verbose = policy_training_options.verbose,
+        log_io = log_io,
+    )
 end
 
 function current_time(progress::BendersTrainingIterationsLog)
@@ -68,15 +88,31 @@ function start_iteration!(progress::BendersTrainingIterationsLog)
 end
 
 function report_current_bounds(progress::BendersTrainingIterationsLog)
-    next(progress.progress_table,
-        [
-            progress.current_iteration,
-            current_lower_bound(progress),
-            current_upper_bound(progress),
-            current_gap(progress),
-            current_time(progress),
-        ],
-    )
+    if progress.verbose
+        next(progress.progress_table,
+            [
+                progress.current_iteration,
+                current_lower_bound(progress),
+                current_upper_bound(progress),
+                current_gap(progress),
+                current_time(progress),
+            ],
+        )
+    end
+    if progress.log_io !== nothing
+        println(
+            progress.log_io,
+            @sprintf(
+                "%9d  %16.8e  %16.8e  %12.4e  %10.2f",
+                progress.current_iteration,
+                current_lower_bound(progress),
+                current_upper_bound(progress),
+                current_gap(progress),
+                current_time(progress),
+            )
+        )
+        flush(progress.log_io)
+    end
     return nothing
 end
 
@@ -84,7 +120,14 @@ function finish_training!(
     progress::BendersTrainingIterationsLog,
     convergence_result::ConvergenceResult,
 )
-    finalize(progress.progress_table)
-    @info(results_message(convergence_result))
+    if progress.verbose
+        finalize(progress.progress_table)
+        @info(results_message(convergence_result))
+    end
+    if progress.log_io !== nothing
+        println(progress.log_io, "# " * results_message(convergence_result))
+        close(progress.log_io)
+        progress.log_io = nothing
+    end
     return nothing
 end

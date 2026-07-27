@@ -16,6 +16,9 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     regularization::AbstractRegularization = NoRegularization()
     rebuild_second_stage_per_scenario::Bool = false
+    # When set, one row per iteration (bounds, gap, time) is appended and
+    # flushed to this file during training, regardless of `verbose`.
+    progress_log_file::String = ""
     stopping_rule::Vector{AbstractStoppingRule} = [IterationLimit(5)]
     mip_options::MIPOptions = MIPOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()
