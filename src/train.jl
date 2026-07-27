@@ -14,6 +14,8 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     implementation_strategy::AbstractTrainingImplementation = SerialTraining()
     cut_strategy::CutStrategy.T = CutStrategy.SingleCut
     risk_measure::AbstractRiskMeasure = RiskNeutral()
+    regularization::AbstractRegularization = NoRegularization()
+    rebuild_second_stage_per_scenario::Bool = false
     stopping_rule::Vector{AbstractStoppingRule} = [IterationLimit(5)]
     mip_options::MIPOptions = MIPOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()

@@ -47,11 +47,19 @@ function serial_benders_simulate(;
     end
 
     stage = 2
-    state_variables_model = state_variables_builder(inputs, stage)
-    model = second_stage_builder(state_variables_model, inputs)
-    set_state(model, state)
+    rebuild_per_scenario =
+        policy.policy_training_options.rebuild_second_stage_per_scenario
+    if !rebuild_per_scenario
+        state_variables_model = state_variables_builder(inputs, stage)
+        model = second_stage_builder(state_variables_model, inputs)
+        set_state(model, state)
+    end
 
     for s in 1:scenarios
+        if rebuild_per_scenario
+            model = second_stage_builder(state_variables_builder(inputs, stage), inputs, s)
+            set_state(model, state)
+        end
         second_stage_modifier(model, inputs, s)
 
         store_retry_data(model, simulation_options)

@@ -14,6 +14,7 @@ include("debugging_options.jl")
 include("results.jl")
 include("states.jl")
 include("risk_measures.jl")
+include("regularization.jl")
 include("options_retry.jl")
 include("mip_options.jl")
 

@@ -1,10 +1,11 @@
 Base.@kwdef mutable struct BendersTrainingIterationsLog <: AbstractProgressLog
     LB::Vector{Float64} = []
     UB::Vector{Float64} = []
+    best_UB::Float64 = Inf
     current_iteration::Int = 0
     start_time::Float64 = time()
     time_iteration::Vector{Float64} = Float64[]
-    progress_table::ProgressTable
+    progress_table::IncrementalProgressTable
 end
 
 function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOptions)
@@ -19,7 +20,7 @@ function BendersTrainingIterationsLog(policy_training_options::PolicyTrainingOpt
         @info("Stopping rule: " * string(policy_training_options.stopping_rule))
     end
 
-    progress_table = ProgressTable(
+    progress_table = IncrementalProgressTable(;
         header = ["Iteration", "Lower bound", "Upper bound", "Gap", "Time [s]"],
         widths = [11, 13, 13, 13, 11],
         format = ["%d", "%.4e", "%.4e", "%.4e", "%.2f"],

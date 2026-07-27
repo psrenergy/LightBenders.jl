@@ -22,7 +22,14 @@ function serial_benders_train(;
     # second stage model
     stage = 2
     state_variables_model = state_variables_builder(inputs, stage)
-    second_stage_model = second_stage_builder(state_variables_model, inputs)
+    if policy_training_options.rebuild_second_stage_per_scenario
+        # The second stage model is rebuilt for every scenario inside the iteration
+        # loop (for problems whose structure changes with the scenario). Build the
+        # scenario 1 model here only to validate that the states match.
+        second_stage_model = second_stage_builder(state_variables_model, inputs, 1)
+    else
+        second_stage_model = second_stage_builder(state_variables_model, inputs)
+    end
 
     check_state_match(
         first_stage_model.ext[:first_stage_state],
@@ -31,6 +38,8 @@ function serial_benders_train(;
 
     undo_relax = relax_integrality(first_stage_model)
     relaxed = true
+
+    best_UB_state = state
 
     while true
         start_iteration!(progress)
@@ -47,13 +56,31 @@ function serial_benders_train(;
         state = get_state(first_stage_model)
         future_cost = get_future_cost(first_stage_model, policy_training_options)
         progress.LB[progress.current_iteration] += JuMP.objective_value(first_stage_model)
-        progress.UB[progress.current_iteration] += JuMP.objective_value(first_stage_model) - future_cost
+        first_stage_cost = JuMP.objective_value(first_stage_model) - future_cost
+        if policy_training_options.regularization isa LevelSetRegularization &&
+           isfinite(progress.best_UB) &&
+           (relaxed || !has_integrality(first_stage_model))
+            level_set_solution = solve_level_set_problem!(
+                first_stage_model,
+                policy_training_options,
+                progress.LB[progress.current_iteration],
+                progress.best_UB,
+            )
+            if level_set_solution !== nothing
+                state, first_stage_cost = level_set_solution
+            end
+        end
+        progress.UB[progress.current_iteration] += first_stage_cost
 
         iteration_pool = initialize_cut_pool(policy_training_options)
         # second stage
         t = 2
         local_pools = LocalCutPool()
         for s in 1:policy_training_options.num_scenarios
+            if policy_training_options.rebuild_second_stage_per_scenario
+                second_stage_model =
+                    second_stage_builder(state_variables_builder(inputs, t), inputs, s)
+            end
             set_state(second_stage_model, state)
             second_stage_modifier(second_stage_model, inputs, s)
             store_retry_data(second_stage_model, policy_training_options)
@@ -66,6 +93,16 @@ function serial_benders_train(;
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj,
         )
+        if progress.UB[progress.current_iteration] < progress.best_UB
+            progress.best_UB = progress.UB[progress.current_iteration]
+            best_UB_state = copy(state)
+        end
+        if !(policy_training_options.regularization isa NoRegularization)
+            # With regularization the trial states are deliberately sub-optimal for
+            # the current cut pool, so the per-iteration upper bound is not
+            # monotone. Report the best upper bound found so far (the paper's U^k).
+            progress.UB[progress.current_iteration] = progress.best_UB
+        end
         progress.time_iteration[progress.current_iteration] = time() - progress.start_time
         # Store the (stage, scenario) cut(s) in a persitent pool.
         # Cuts here can be following the single cut strategy or 
@@ -86,10 +123,14 @@ function serial_benders_train(;
             break
         end
     end
+    # With regularization the last state is a level-set trial point, so the plan
+    # that achieved the best upper bound is the one to return.
+    final_state =
+        policy_training_options.regularization isa NoRegularization ? state : best_UB_state
     return Policy(
         progress = progress,
         pool = pool,
-        states = state,
+        states = final_state,
         policy_training_options = policy_training_options,
     )
 end
