@@ -25,12 +25,20 @@ function job_queue_benders_train(;
     validate_benders_training_options(policy_training_options)
 
     if JQM.is_worker_process()
-        # second stage model
+        # second stage model. With rebuild_second_stage_per_scenario the model is
+        # built per received job (the structure changes with the scenario), so
+        # nothing is prebuilt here.
         stage = 2
-        state_variables_model = state_variables_builder(inputs, stage)
-        second_stage_model = second_stage_builder(state_variables_model, inputs)
+        second_stage_model = if policy_training_options.rebuild_second_stage_per_scenario
+            nothing
+        else
+            state_variables_model = state_variables_builder(inputs, stage)
+            second_stage_builder(state_variables_model, inputs)
+        end
         workers_loop(
             second_stage_model,
+            state_variables_builder,
+            second_stage_builder,
             second_stage_modifier,
             inputs,
             policy_training_options,
@@ -59,11 +67,19 @@ function job_queue_benders_train(;
     # second stage model (here in the controller, only used for checking if the states match)
     stage = 2
     second_stage_state_variables_model = state_variables_builder(inputs, stage)
+    if policy_training_options.rebuild_second_stage_per_scenario
+        # State registration happens inside the scenario builder — build the
+        # scenario 1 model once to validate the states, then discard it.
+        second_stage_state_variables_model =
+            second_stage_builder(second_stage_state_variables_model, inputs, 1)
+    end
 
     check_state_match(
         first_stage_model.ext[:first_stage_state],
         second_stage_state_variables_model.ext[:second_stage_state],
     )
+
+    best_UB_state = state
 
     while true
         start_iteration!(progress)
@@ -81,7 +97,22 @@ function job_queue_benders_train(;
         state = get_state(first_stage_model)
         future_cost = get_future_cost(first_stage_model, policy_training_options)
         progress.LB[progress.current_iteration] += JuMP.objective_value(first_stage_model)
-        progress.UB[progress.current_iteration] += JuMP.objective_value(first_stage_model) - future_cost
+        first_stage_cost = JuMP.objective_value(first_stage_model) - future_cost
+        if policy_training_options.regularization isa LevelSetRegularization &&
+           isfinite(progress.best_UB) &&
+           ((policy_training_options.mip_options.run_mip_after_iteration > 0 && relaxed) ||
+            !has_integrality(first_stage_model))
+            level_set_solution = solve_level_set_problem!(
+                first_stage_model,
+                policy_training_options,
+                progress.LB[progress.current_iteration],
+                progress.best_UB,
+            )
+            if level_set_solution !== nothing
+                state, first_stage_cost = level_set_solution
+            end
+        end
+        progress.UB[progress.current_iteration] += first_stage_cost
         iteration_pool = initialize_cut_pool(policy_training_options)
 
         t = 2
@@ -125,6 +156,16 @@ function job_queue_benders_train(;
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj,
         )
+        if progress.UB[progress.current_iteration] < progress.best_UB
+            progress.best_UB = progress.UB[progress.current_iteration]
+            best_UB_state = copy(state)
+        end
+        if !(policy_training_options.regularization isa NoRegularization)
+            # With regularization the trial states are deliberately sub-optimal for
+            # the current cut pool, so the per-iteration upper bound is not
+            # monotone. Report the best upper bound found so far (the paper's U^k).
+            progress.UB[progress.current_iteration] = progress.best_UB
+        end
         progress.time_iteration[progress.current_iteration] = time() - progress.start_time
         if policy_training_options.verbose
             report_current_bounds(progress)
@@ -141,16 +182,22 @@ function job_queue_benders_train(;
     end
     JQM.mpi_barrier()
 
+    # With regularization the last state is a level-set trial point, so the plan
+    # that achieved the best upper bound is the one to return.
+    final_state =
+        policy_training_options.regularization isa NoRegularization ? state : best_UB_state
     return Policy(
         progress = progress,
         pool = pool,
-        states = state,
+        states = final_state,
         policy_training_options = policy_training_options,
     )
 end
 
 function workers_loop(
-    second_stage_model::JuMP.Model,
+    second_stage_model::Union{JuMP.Model, Nothing},
+    state_variables_builder::Function,
+    second_stage_builder::Function,
     second_stage_modifier::Function,
     inputs,
     policy_training_options::PolicyTrainingOptions,
@@ -164,8 +211,13 @@ function workers_loop(
             break
         end
 
+        model = if policy_training_options.rebuild_second_stage_per_scenario
+            second_stage_builder(state_variables_builder(inputs, 2), inputs, message.scenario)
+        else
+            second_stage_model
+        end
         answer = worker_second_stage(
-            second_stage_model,
+            model,
             second_stage_modifier,
             inputs,
             policy_training_options,
