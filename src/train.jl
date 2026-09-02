@@ -8,6 +8,9 @@ struct JobQueueTraining <: AbstractTrainingImplementation end
 """
 Base.@kwdef mutable struct PolicyTrainingOptions
     num_scenarios::Int
+    # Probability of each scenario. Empty means equiprobable (1/num_scenarios),
+    # which is what every earlier version assumed unconditionally.
+    scenario_probabilities::Vector{Float64} = Float64[]
     lower_bound::Real = 0.0
     discount_rate::Real = 0.0
     verbose::Bool = true

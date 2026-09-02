@@ -56,11 +56,14 @@ function risk_neutral_single_cut!(
     t::Integer,
 )
     num_local_cuts = length(local_cuts.obj)
-    obj = mean(local_cuts.obj)
-    rhs = mean(local_cuts.rhs)
+    # Probability-weighted aggregation. With uniform probabilities this is the
+    # mean, which is what this did unconditionally before.
+    probs = scenario_probabilities(options)
+    obj = sum(probs[j] * local_cuts.obj[j] for j in 1:num_local_cuts)
+    rhs = sum(probs[j] * local_cuts.rhs[j] for j in 1:num_local_cuts)
     coefs = zeros(Float64, length(local_cuts.coefs[1]))
     for i in eachindex(coefs)
-        coefs[i] = sum(local_cuts.coefs[j][i] for j in 1:num_local_cuts) / num_local_cuts
+        coefs[i] = sum(probs[j] * local_cuts.coefs[j][i] for j in 1:num_local_cuts)
     end
     store_cut!(pool[t-1], coefs, state, rhs, obj)
     return nothing

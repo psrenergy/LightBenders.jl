@@ -15,7 +15,8 @@ end
 
 function second_stage_upper_bound_contribution(policy_training_options::PolicyTrainingOptions, objectives::Vector{Float64})
     num_scenarios = policy_training_options.num_scenarios
-    expected_value = sum(objectives[s] / num_scenarios for s in 1:num_scenarios)
+    probs = scenario_probabilities(policy_training_options)
+    expected_value = sum(probs[s] * objectives[s] for s in 1:num_scenarios)
     if policy_training_options.risk_measure isa RiskNeutral
         return expected_value
     elseif policy_training_options.risk_measure isa CVaR

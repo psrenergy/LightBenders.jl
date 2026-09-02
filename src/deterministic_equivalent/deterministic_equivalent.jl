@@ -3,6 +3,8 @@
 # JuMP.Model(optimizer). This bypasses the caching layer for significant speedup.
 Base.@kwdef mutable struct DeterministicEquivalentOptions
     num_scenarios::Int
+    # Empty means equiprobable. See `scenario_probabilities`.
+    scenario_probabilities::Vector{Float64} = Float64[]
     debugging_options::DebuggingOptions = DebuggingOptions()
     risk_measure::AbstractRiskMeasure = RiskNeutral()
     set_names::Bool = false  # Set to true to name variables (useful for debugging, but slower)
@@ -213,9 +215,10 @@ end
 function build_risk_neutral_objective(
     first_stage_objective,
     scenario_objectives::Vector,
-    num_scenarios::Int
+    num_scenarios::Int,
+    probs::Vector{Float64},
 )
-    weighted_scenarios = [(1 / num_scenarios) * obj for obj in scenario_objectives]
+    weighted_scenarios = [probs[s] * scenario_objectives[s] for s in 1:num_scenarios]
     return first_stage_objective + sum(weighted_scenarios)
 end
 
@@ -263,7 +266,10 @@ function build_objective!(
     options::DeterministicEquivalentOptions
 )
     objective = if options.risk_measure isa RiskNeutral
-        build_risk_neutral_objective(first_stage_objective, scenario_objectives, options.num_scenarios)
+        build_risk_neutral_objective(
+            first_stage_objective, scenario_objectives, options.num_scenarios,
+            scenario_probabilities(options),
+        )
     elseif options.risk_measure isa CVaR
         build_cvar_objective(model, first_stage_objective, scenario_objectives,
                            options.num_scenarios, options.risk_measure, options.set_names)

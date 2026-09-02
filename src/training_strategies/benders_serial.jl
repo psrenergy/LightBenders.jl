@@ -134,6 +134,36 @@ end
 function validate_benders_training_options(policy_training_options::PolicyTrainingOptions)
     num_errors = 0
 
+    probs = policy_training_options.scenario_probabilities
+    if !isempty(probs)
+        if length(probs) != policy_training_options.num_scenarios
+            @error(
+                "scenario_probabilities has $(length(probs)) entries but " *
+                "num_scenarios is $(policy_training_options.num_scenarios)"
+            )
+            num_errors += 1
+        end
+        if any(p -> p < 0, probs)
+            @error("scenario_probabilities must be non-negative")
+            num_errors += 1
+        end
+        if !isapprox(sum(probs), 1.0; atol = 1e-8)
+            @error("scenario_probabilities must sum to 1, got $(sum(probs))")
+            num_errors += 1
+        end
+        if policy_training_options.risk_measure isa CVaR &&
+           any(p -> !isapprox(p, 1.0 / policy_training_options.num_scenarios; atol = 1e-9), probs)
+            # The CVaR reformulation builds its z/delta terms assuming
+            # equiprobable scenarios (the 1/((1-alpha)*L) coefficients in
+            # multi_cut.jl and the deterministic equivalent). Supporting
+            # non-uniform probabilities there needs the formulation reworked,
+            # not just the coefficients swapped, so refuse rather than return a
+            # quietly wrong answer.
+            @error("CVaR with non-uniform scenario_probabilities is not supported")
+            num_errors += 1
+        end
+    end
+
     if num_errors > 0
         error("Validation of policy training options failed.")
     end

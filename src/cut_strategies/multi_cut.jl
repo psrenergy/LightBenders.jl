@@ -56,7 +56,8 @@ function add_multi_cut_risk_neutral_cuts!(
         JuMP.set_objective_coefficient(
             model,
             alphas[scen],
-            (1.0 - policy_training_options.discount_rate) / policy_training_options.num_scenarios,
+            (1.0 - policy_training_options.discount_rate) *
+            scenario_probability(policy_training_options, scen),
         )
         for i in 1:length(pool.cuts)
             add_cut(model, alphas[scen], pool.cuts[i].coefs[scen], pool.cuts[i].rhs[scen])
@@ -120,7 +121,11 @@ function get_multi_cut_future_cost(model::JuMP.Model, policy_training_options)::
     end
     alphas = JuMP.value.(model[:epi_multi_cut])
     if policy_training_options.risk_measure isa RiskNeutral
-        return mean(alphas)
+        # Must mirror the epigraph coefficients set in
+        # add_multi_cut_risk_neutral_cuts!. The caller subtracts this from the
+        # master objective to recover the first-stage cost, so averaging here
+        # while weighting there corrupts the upper bound.
+        return dot(scenario_probabilities(policy_training_options), alphas)
     elseif policy_training_options.risk_measure isa CVaR
         discount_rate_multiplier = (1.0 - policy_training_options.discount_rate)
         z_explicit_cvar = JuMP.value(model[:z_explicit_cvar])
