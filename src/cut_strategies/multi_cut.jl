@@ -33,11 +33,26 @@ function store_cut!(
 end
 
 function create_epigraph_multi_cut_variables!(model::JuMP.Model, policy_training_options)
-    model.obj_dict[:epi_multi_cut] = Vector{JuMP.VariableRef}(undef, policy_training_options.num_scenarios)
-    alphas = model.obj_dict[:epi_multi_cut]
-    for scen in 1:policy_training_options.num_scenarios
-        epi_multi_cut = JuMP.@variable(model, lower_bound = policy_training_options.lower_bound)
-        alphas[scen] = epi_multi_cut
+    if haskey(model, :epi_multi_cut)
+        # The first stage builder registered its own epigraph variables, e.g. to
+        # bound them from below with a relaxation of the second stage that
+        # lives inside the master. Reuse them: cuts and objective coefficients
+        # are attached to these variables as usual.
+        alphas = model[:epi_multi_cut]
+        if !(alphas isa Vector{JuMP.VariableRef}) ||
+           length(alphas) != policy_training_options.num_scenarios
+            error(
+                "model[:epi_multi_cut] must be a Vector{VariableRef} with one entry " *
+                "per scenario ($(policy_training_options.num_scenarios))",
+            )
+        end
+    else
+        model.obj_dict[:epi_multi_cut] = Vector{JuMP.VariableRef}(undef, policy_training_options.num_scenarios)
+        alphas = model.obj_dict[:epi_multi_cut]
+        for scen in 1:policy_training_options.num_scenarios
+            epi_multi_cut = JuMP.@variable(model, lower_bound = policy_training_options.lower_bound)
+            alphas[scen] = epi_multi_cut
+        end
     end
     if policy_training_options.risk_measure isa CVaR
         JuMP.@variable(model, z_explicit_cvar)
