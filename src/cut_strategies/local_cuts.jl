@@ -9,6 +9,9 @@ Base.@kwdef mutable struct LocalCutPool <: AbstractCutPool
     state::Vector{Vector{Float64}} = Vector{Float64}[]
     rhs::Vector{Float64} = Float64[]
     obj::Vector{Float64} = Float64[]
+    # Per-scenario completion flags for the pre-allocated (parallel) pool.
+    # Empty for the sequential pool, where cuts are pushed as they arrive.
+    processed::Vector{Bool} = Bool[]
 end
 
 """
@@ -27,6 +30,7 @@ function LocalCutPool(num_scenarios::Int)
         state = [Float64[] for _ in 1:num_scenarios],
         rhs = zeros(Float64, num_scenarios),
         obj = zeros(Float64, num_scenarios),
+        processed = falses(num_scenarios),
     )
 end
 
@@ -41,11 +45,14 @@ Validate that all scenario indices in a pre-allocated LocalCutPool have been fil
 This should be called before using the pool in parallel implementations to ensure
 no worker failures or incomplete processing occurred.
 
-Throws an error if any scenario has not been processed (detected by empty coefs vector).
+Throws an error if any scenario has not been processed. Completion is tracked
+explicitly (not inferred from the cut coefficients) because a problem without
+first stage state variables, e.g. a pure scenario simulation with all first stage
+decisions fixed, legitimately produces cuts with empty coefficient vectors.
 """
 function validate_all_scenarios_processed(pool::LocalCutPool, num_scenarios::Int)
     for s in 1:num_scenarios
-        if isempty(pool.coefs[s])
+        if !pool.processed[s]
             error("Scenario $s was not processed - cut pool is incomplete. This may indicate a worker failure or error in parallel execution.")
         end
     end
@@ -85,5 +92,6 @@ function store_cut!(
     pool.state[scenario] = state
     pool.rhs[scenario] = rhs
     pool.obj[scenario] = obj
+    pool.processed[scenario] = true
     return nothing
 end
