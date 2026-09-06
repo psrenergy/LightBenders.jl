@@ -54,7 +54,7 @@ function init_state(cache::StateCache, name::Symbol, variables, scenario::Int = 
         push!(cache.variables, variables[i])
         push!(cache.scenario, scenario)
     end
-    push!(cache.state, StateDef(name, first, dimension, scenario))
+    push!(cache.state, StateDef(name, first, len, scenario))
     return nothing
 end
 
@@ -65,7 +65,7 @@ function init_state(cache::StateCache, name::Symbol, variables::JuMP.VariableRef
     sizehint!(cache.variables, dimension + len)
     push!(cache.variables, variables)
     push!(cache.scenario, scenario)
-    push!(cache.state, StateDef(name, first, dimension, scenario))
+    push!(cache.state, StateDef(name, first, len, scenario))
     return nothing
 end
 
