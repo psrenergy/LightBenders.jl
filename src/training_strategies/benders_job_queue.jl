@@ -59,6 +59,9 @@ function job_queue_benders_train(;
     state_variables_model = state_variables_builder(inputs, stage)
     first_stage_model = first_stage_builder(state_variables_model, inputs)
     create_epigraph_variables!(first_stage_model, policy_training_options)
+    model_has_integrality = has_integrality(first_stage_model)
+    relaxed = false
+    undo_relax = () -> nothing
     if policy_training_options.mip_options.run_mip_after_iteration > 0
         undo_relax = relax_integrality(first_stage_model)
         relaxed = true
@@ -88,6 +91,7 @@ function job_queue_benders_train(;
             if progress.current_iteration > policy_training_options.mip_options.run_mip_after_iteration && relaxed
                 undo_relax()
                 relaxed = false
+                progress.best_UB = Inf
             end
         end
         add_all_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
@@ -175,9 +179,21 @@ function job_queue_benders_train(;
         convergence_result =
             convergence_test(progress, policy_training_options.stopping_rule)
         if has_converged(convergence_result) || progress.LB[progress.current_iteration] > progress.UB[progress.current_iteration]
-            finish_training!(progress, convergence_result)
-            JQM.send_termination_message()
-            break
+            if relaxed && model_has_integrality && !is_hard_stop(convergence_result)
+                # The LP-relaxed phase converged: restore integrality and keep
+                # iterating instead of returning a fractional first stage.
+                @info("Relaxed first stage converged at iteration $(progress.current_iteration); restoring integrality and continuing")
+                undo_relax()
+                relaxed = false
+                progress.best_UB = Inf
+            else
+                if relaxed && model_has_integrality
+                    @warn("Training stopped while the first stage was still LP-relaxed; the returned state may be fractional")
+                end
+                finish_training!(progress, convergence_result)
+                JQM.send_termination_message()
+                break
+            end
         end
     end
     JQM.mpi_barrier()

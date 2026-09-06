@@ -10,6 +10,10 @@ end
 
 has_converged(result::ConvergenceResult) = result.has_converged
 results_message(result::ConvergenceResult) = result.message
+# Whether the stop was forced by a resource limit (time / iterations) rather
+# than by the bounds meeting. Used to decide if an LP-relaxed phase may still
+# switch to the integer phase and continue.
+is_hard_stop(result::ConvergenceResult) = occursin("limit", result.message)
 
 """
     IterationLimit(max_iterations::Int)
