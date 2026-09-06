@@ -21,6 +21,7 @@ function serial_benders_simulate(;
     stage = 1
     state_variables_model = state_variables_builder(inputs, stage)
     model = first_stage_builder(state_variables_model, inputs)
+    first_stage_cache = model.ext[:first_stage_state]::StateCache
     create_epigraph_variables!(model, policy.policy_training_options)
     add_all_cuts!(model, policy.pool[1], policy.policy_training_options)
 
@@ -52,14 +53,14 @@ function serial_benders_simulate(;
     if !rebuild_per_scenario
         state_variables_model = state_variables_builder(inputs, stage)
         model = second_stage_builder(state_variables_model, inputs)
-        set_state(model, state)
     end
 
     for s in 1:scenarios
         if rebuild_per_scenario
             model = second_stage_builder(state_variables_builder(inputs, stage), inputs, s)
-            set_state(model, state)
         end
+        # Shared states plus the block of scenario s (whole vector otherwise).
+        set_state(model, scenario_state(first_stage_cache, state, s))
         second_stage_modifier(model, inputs, s)
 
         store_retry_data(model, simulation_options)

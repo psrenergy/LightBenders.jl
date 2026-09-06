@@ -5,6 +5,7 @@ using JobQueueMPI
 using JuMP
 using LinearAlgebra
 using Printf
+using SparseArrays
 using ProgressTables
 using Statistics
 

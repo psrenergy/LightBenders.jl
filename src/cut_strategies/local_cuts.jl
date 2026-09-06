@@ -5,7 +5,8 @@
 Cut pool to store all cuts calculated in the second stage. In this phase we store one cut per scenario.
 """
 Base.@kwdef mutable struct LocalCutPool <: AbstractCutPool
-    coefs::Vector{Vector{Float64}} = Vector{Float64}[]
+    # Dense vectors for shared states, SparseVector when states are scenario specific.
+    coefs::Vector{AbstractVector{Float64}} = AbstractVector{Float64}[]
     state::Vector{Vector{Float64}} = Vector{Float64}[]
     rhs::Vector{Float64} = Float64[]
     obj::Vector{Float64} = Float64[]
@@ -26,7 +27,7 @@ Use `validate_all_scenarios_processed` to verify all scenarios have been filled.
 """
 function LocalCutPool(num_scenarios::Int)
     return LocalCutPool(
-        coefs = [Float64[] for _ in 1:num_scenarios],
+        coefs = AbstractVector{Float64}[Float64[] for _ in 1:num_scenarios],
         state = [Float64[] for _ in 1:num_scenarios],
         rhs = zeros(Float64, num_scenarios),
         obj = zeros(Float64, num_scenarios),
@@ -61,7 +62,7 @@ end
 
 function store_cut!(
     pool::LocalCutPool,
-    coefs::Vector{Float64},
+    coefs::AbstractVector{Float64},
     state::Vector{Float64},
     rhs::Float64,
     obj::Float64,
@@ -82,7 +83,7 @@ using `LocalCutPool(num_scenarios)`.
 """
 function store_cut!(
     pool::LocalCutPool,
-    coefs::Vector{Float64},
+    coefs::AbstractVector{Float64},
     state::Vector{Float64},
     rhs::Float64,
     obj::Float64,

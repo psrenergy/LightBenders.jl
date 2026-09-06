@@ -75,6 +75,25 @@ function add_cut(model::JuMP.Model, epigraph_variable::JuMP.VariableRef, coefs::
     return cref
 end
 
+# Sparse cut (scenario specific states): only touch the states that appear.
+function add_cut(
+    model::JuMP.Model,
+    epigraph_variable::JuMP.VariableRef,
+    coefs::SparseArrays.SparseVector{T, Int},
+    rhs::T,
+) where {T <: Real}
+    alpha = epigraph_variable
+    cache = model.ext[:first_stage_state]::StateCache
+    expr = JuMP.AffExpr(rhs)
+    nzind = SparseArrays.nonzeroinds(coefs)
+    nzval = SparseArrays.nonzeros(coefs)
+    for k in eachindex(nzind)
+        JuMP.add_to_expression!(expr, nzval[k], cache.variables[nzind[k]])
+    end
+    cref = @constraint(model, alpha >= expr)
+    return cref
+end
+
 function create_epigraph_variables!(model::JuMP.Model, policy_training_options)
     if policy_training_options.cut_strategy == CutStrategy.SingleCut
         return create_epigraph_single_cut_variables!(model, policy_training_options)

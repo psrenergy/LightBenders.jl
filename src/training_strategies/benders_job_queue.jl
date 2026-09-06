@@ -118,8 +118,12 @@ function job_queue_benders_train(;
         t = 2
         # Pre-allocate LocalCutPool to store cuts in correct scenario order
         local_pools = LocalCutPool(policy_training_options.num_scenarios)
+        first_stage_cache = first_stage_model.ext[:first_stage_state]::StateCache
         for s in 1:policy_training_options.num_scenarios
-            message = SecondStageMessage(progress.current_iteration, s, state)
+            # Workers receive only the states their scenario needs.
+            message = SecondStageMessage(
+                progress.current_iteration, s, scenario_state(first_stage_cache, state, s),
+            )
             JQM.add_job_to_queue!(controller, message)
         end
         while JQM.any_jobs_left(controller)
@@ -134,7 +138,7 @@ function job_queue_benders_train(;
                         # Store cut at correct scenario index to preserve ordering
                         store_cut!(
                             local_pools,
-                            message.coefs,
+                            expand_cut_coefficients(first_stage_cache, message.coefs, message.scenario),
                             state,
                             message.rhs,
                             message.obj,

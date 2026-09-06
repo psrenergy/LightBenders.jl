@@ -76,19 +76,23 @@ function serial_benders_train(;
         # second stage
         t = 2
         local_pools = LocalCutPool()
+        first_stage_cache = first_stage_model.ext[:first_stage_state]::StateCache
         for s in 1:policy_training_options.num_scenarios
             if policy_training_options.rebuild_second_stage_per_scenario
                 second_stage_model =
                     second_stage_builder(state_variables_builder(inputs, t), inputs, s)
             end
-            set_state(second_stage_model, state)
+            # Shared states plus the block of scenario s (the whole vector when
+            # no state is scenario specific).
+            state_s = scenario_state(first_stage_cache, state, s)
+            set_state(second_stage_model, state_s)
             second_stage_modifier(second_stage_model, inputs, s)
             store_retry_data(second_stage_model, policy_training_options)
             optimize_with_retry(second_stage_model)
             treat_termination_status(second_stage_model, policy_training_options, t, s, progress.current_iteration)
-            coefs, rhs, obj = get_cut(second_stage_model, state)
+            coefs, rhs, obj = get_cut(second_stage_model, state_s)
             # Store the opening cut in a temporary cut pool
-            store_cut!(local_pools, coefs, state, rhs, obj)
+            store_cut!(local_pools, expand_cut_coefficients(first_stage_cache, coefs, s), state, rhs, obj)
         end
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj,

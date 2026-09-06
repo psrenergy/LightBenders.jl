@@ -8,7 +8,7 @@ The cuts stored in a single cut implementation are the average cuts of all cuts 
 The first dimension is scenarios and the second is states
 """
 Base.@kwdef mutable struct CutPoolSingleCut <: AbstractCutPool
-    coefs::Vector{Vector{Float64}} = Vector{Float64}[]
+    coefs::Vector{AbstractVector{Float64}} = AbstractVector{Float64}[]
     state::Vector{Vector{Float64}} = Vector{Float64}[]
     rhs::Vector{Float64} = Float64[]
     obj::Vector{Float64} = Float64[]
@@ -20,7 +20,7 @@ end
 
 function store_cut!(
     pool::CutPoolSingleCut,
-    coefs::Vector{Float64},
+    coefs::AbstractVector{Float64},
     state::Vector{Float64},
     rhs::Float64,
     obj::Float64,
@@ -61,10 +61,8 @@ function risk_neutral_single_cut!(
     probs = scenario_probabilities(options)
     obj = sum(probs[j] * local_cuts.obj[j] for j in 1:num_local_cuts)
     rhs = sum(probs[j] * local_cuts.rhs[j] for j in 1:num_local_cuts)
-    coefs = zeros(Float64, length(local_cuts.coefs[1]))
-    for i in eachindex(coefs)
-        coefs[i] = sum(probs[j] * local_cuts.coefs[j][i] for j in 1:num_local_cuts)
-    end
+    # Works for dense and sparse (scenario specific states) coefficient vectors.
+    coefs = sum(probs[j] * local_cuts.coefs[j] for j in 1:num_local_cuts)
     store_cut!(pool[t-1], coefs, state, rhs, obj)
     return nothing
 end
@@ -79,10 +77,7 @@ function cvar_single_cut!(
     weights = build_cvar_weights(local_cuts.obj, options.risk_measure.alpha, options.risk_measure.lambda)
     obj = dot(weights, local_cuts.obj)
     rhs = dot(weights, local_cuts.rhs)
-    coefs = zeros(Float64, length(local_cuts.coefs[1]))
-    for j in eachindex(weights)
-        coefs .+= weights[j] .* local_cuts.coefs[j]
-    end
+    coefs = sum(weights[j] * local_cuts.coefs[j] for j in eachindex(weights))
     store_cut!(pool[t-1], coefs, state, rhs, obj)
     return nothing
 end
