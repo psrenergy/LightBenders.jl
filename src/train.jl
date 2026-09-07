@@ -26,6 +26,8 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     mip_options::MIPOptions = MIPOptions()
     debugging_options::DebuggingOptions = DebuggingOptions()
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
+    # see STATE_SNAP_TOLERANCE
+    state_snap_tolerance::Float64 = STATE_SNAP_TOLERANCE
 end
 
 """

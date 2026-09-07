@@ -98,7 +98,7 @@ function job_queue_benders_train(;
         store_retry_data(first_stage_model, policy_training_options)
         optimize_with_retry(first_stage_model)
         treat_termination_status(first_stage_model, policy_training_options, t, progress.current_iteration)
-        state = get_state(first_stage_model)
+        state = get_state(first_stage_model; snap_tolerance = policy_training_options.state_snap_tolerance)
         future_cost = get_future_cost(first_stage_model, policy_training_options)
         progress.LB[progress.current_iteration] += JuMP.objective_value(first_stage_model)
         first_stage_cost = JuMP.objective_value(first_stage_model) - future_cost

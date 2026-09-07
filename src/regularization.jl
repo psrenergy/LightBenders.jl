@@ -98,7 +98,7 @@ function solve_level_set_problem!(
     JuMP.optimize!(model)
     result = nothing
     if JuMP.termination_status(model) == MOI.OPTIMAL && JuMP.has_values(model)
-        state = get_state(model)
+        state = get_state(model; snap_tolerance = policy_training_options.state_snap_tolerance)
         first_stage_cost =
             JuMP.value(objfun) - get_future_cost(model, policy_training_options)
         result = (state, first_stage_cost)

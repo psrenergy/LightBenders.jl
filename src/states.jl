@@ -156,14 +156,17 @@ function _check_state_defs_match(first_defs::Vector{StateDef}, second_defs::Vect
 end
 
 """
-Absolute tolerance used by `get_state` to snap a state value onto a bound (or
-onto zero). Interior-point solutions without crossover carry residues such as
-1e-20 or 1 - 1e-9; fixing subproblem variables to those values produces
-RHS/bound ranges spanning 25 orders of magnitude and stalls the barrier.
+Default absolute tolerance used by `get_state` to snap a state value onto a
+bound (or onto zero). Interior-point solutions without crossover carry residues
+such as 1e-20 or 1 - 1e-9; fixing subproblem variables to those values produces
+RHS/bound ranges spanning 25 orders of magnitude and stalls the barrier. A
+larger tolerance (e.g. 1e-3 for LP-relaxed binaries) also removes nearly
+empty variable boxes in the subproblems; cuts remain valid because they are
+evaluated at the snapped point.
 """
 const STATE_SNAP_TOLERANCE = 1e-6
 
-function get_state(model)
+function get_state(model; snap_tolerance::Float64 = STATE_SNAP_TOLERANCE)
     cache = model.ext[:first_stage_state]::StateCache
     state = Vector{Float64}(undef, length(cache.variables))
     for i in eachindex(cache.variables)
@@ -171,17 +174,17 @@ function get_state(model)
         # Ensure the state variable is within bounds, snapping residues
         if has_upper_bound(cache.variables[i])
             ub = JuMP.upper_bound(cache.variables[i])
-            if value > ub - STATE_SNAP_TOLERANCE
+            if value > ub - snap_tolerance
                 value = ub
             end
         end
         if has_lower_bound(cache.variables[i])
             lb = JuMP.lower_bound(cache.variables[i])
-            if value < lb + STATE_SNAP_TOLERANCE
+            if value < lb + snap_tolerance
                 value = lb
             end
         end
-        if abs(value) < STATE_SNAP_TOLERANCE
+        if abs(value) < snap_tolerance
             value = 0.0
         end
         if is_binary(cache.variables[i])
