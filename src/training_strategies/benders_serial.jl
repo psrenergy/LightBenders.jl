@@ -91,7 +91,7 @@ function serial_benders_train(;
             state_s = scenario_state(first_stage_cache, state, s)
             set_state(second_stage_model, state_s)
             second_stage_modifier(second_stage_model, inputs, s)
-            store_retry_data(second_stage_model, policy_training_options)
+            store_retry_data(second_stage_model, policy_training_options; second_stage = true)
             optimize_with_retry(second_stage_model)
             treat_termination_status(second_stage_model, policy_training_options, t, s, progress.current_iteration)
             coefs, rhs, obj = get_cut(second_stage_model, state_s)

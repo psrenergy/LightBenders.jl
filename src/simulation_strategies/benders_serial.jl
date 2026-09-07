@@ -63,7 +63,7 @@ function serial_benders_simulate(;
         set_state(model, scenario_state(first_stage_cache, state, s))
         second_stage_modifier(model, inputs, s)
 
-        store_retry_data(model, simulation_options)
+        store_retry_data(model, simulation_options; second_stage = true)
         optimize_with_retry(model)
         treat_termination_status(model, simulation_options, 2, s)
 

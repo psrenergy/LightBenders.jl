@@ -259,7 +259,7 @@ function worker_second_stage(
 
     set_state(second_stage_model, state)
     second_stage_modifier(second_stage_model, inputs, scenario)
-    store_retry_data(second_stage_model, policy_training_options)
+    store_retry_data(second_stage_model, policy_training_options; second_stage = true)
     optimize_with_retry(second_stage_model)
     treat_termination_status(second_stage_model, policy_training_options, t, scenario, iteration)
     coefs, rhs, obj = get_cut(second_stage_model, state)
