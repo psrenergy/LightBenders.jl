@@ -58,7 +58,10 @@ function optimize_with_retry(model)::Nothing
             return nothing
         end
     end
-    # Then try changing options
+    # Then try changing options. When an attempt succeeds, keep its settings:
+    # restoring attributes after the solve invalidates the solution just
+    # obtained (JuMP then raises OptimizeNotCalled on any query), and the
+    # settings that worked are the ones the next solve of this model wants.
     for options in data
         current = Pair{String, Any}[]
         for (key, value) in options
@@ -68,11 +71,11 @@ function optimize_with_retry(model)::Nothing
         end
         JuMP.optimize!(model)
         status = JuMP.termination_status(model)
+        if status == MOI.OPTIMAL
+            return nothing
+        end
         for (key, value) in current
             set_attribute(model, key, value)
-        end
-        if status == MOI.OPTIMAL
-            break
         end
     end
     return nothing
