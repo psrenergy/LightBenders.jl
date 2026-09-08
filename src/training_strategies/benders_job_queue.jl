@@ -171,12 +171,13 @@ function job_queue_benders_train(;
         progress.UB[progress.current_iteration] += second_stage_upper_bound_contribution(
             policy_training_options, local_pools.obj,
         )
-        if progress.UB[progress.current_iteration] < progress.best_UB
+        improved = progress.UB[progress.current_iteration] < progress.best_UB
+        if improved
             progress.best_UB = progress.UB[progress.current_iteration]
             best_UB_state = copy(state)
-            if policy_training_options.checkpoint_callback !== nothing
-                policy_training_options.checkpoint_callback(best_UB_state, first_stage_model, progress)
-            end
+        end
+        if policy_training_options.checkpoint_callback !== nothing
+            policy_training_options.checkpoint_callback(state, best_UB_state, first_stage_model, progress, improved)
         end
         if !(policy_training_options.regularization isa NoRegularization)
             # With regularization the trial states are deliberately sub-optimal for

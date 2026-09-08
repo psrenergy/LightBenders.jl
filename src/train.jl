@@ -28,9 +28,12 @@ Base.@kwdef mutable struct PolicyTrainingOptions
     retry_optimize::RetryOptimizeOptions = RetryOptimizeOptions()
     # see STATE_SNAP_TOLERANCE
     state_snap_tolerance::Float64 = STATE_SNAP_TOLERANCE
-    # Called as `checkpoint_callback(best_state, first_stage_model, progress)` whenever the
-    # best upper bound improves, so the incumbent first-stage decision can be persisted
-    # (a long run can then be stopped without losing it).
+    # Called at the end of every iteration as
+    # `checkpoint_callback(state, best_state, first_stage_model, progress, improved)`, where
+    # `state` is this iteration's trial first-stage decision, `best_state` the one with the
+    # best upper bound so far and `improved` whether it changed this iteration. Lets the
+    # caller persist decisions so a long run can be stopped without losing them and its
+    # evolution can be inspected.
     checkpoint_callback::Union{Function, Nothing} = nothing
 end
 
