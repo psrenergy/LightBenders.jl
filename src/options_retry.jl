@@ -45,12 +45,26 @@ function store_retry_data(model, options; second_stage::Bool = false)
     return nothing
 end
 
+# A solve stopped by a user-set limit (time, stall, node or solution count) that
+# still carries a feasible primal point is a deliberate early stop, not a failure:
+# the master MIP under a time cap returns its incumbent and a proven bound.
+const ACCEPTED_LIMIT_STATUSES = (
+    MOI.TIME_LIMIT, MOI.NODE_LIMIT, MOI.SOLUTION_LIMIT, MOI.OTHER_LIMIT,
+    MOI.ITERATION_LIMIT, MOI.MEMORY_LIMIT, MOI.OBJECTIVE_LIMIT,
+)
+
+function solve_is_acceptable(model)
+    status = JuMP.termination_status(model)
+    status == MOI.OPTIMAL && return true
+    return status in ACCEPTED_LIMIT_STATUSES && JuMP.primal_status(model) == MOI.FEASIBLE_POINT
+end
+
 function optimize_with_retry(model)::Nothing
     JuMP.optimize!(model)
-    status = JuMP.termination_status(model)
-    if status == MOI.OPTIMAL
+    if solve_is_acceptable(model)
         return nothing
     end
+    status = JuMP.termination_status(model)
     if !haskey(model.ext, :retry_optimize_options)
         return nothing
     end
@@ -61,8 +75,7 @@ function optimize_with_retry(model)::Nothing
     if callback !== nothing
         callback(model)
         JuMP.optimize!(model)
-        status = JuMP.termination_status(model)
-        if status == MOI.OPTIMAL
+        if solve_is_acceptable(model)
             return nothing
         end
     end
@@ -78,8 +91,7 @@ function optimize_with_retry(model)::Nothing
             set_attribute(model, key, value)
         end
         JuMP.optimize!(model)
-        status = JuMP.termination_status(model)
-        if status == MOI.OPTIMAL
+        if solve_is_acceptable(model)
             return nothing
         end
         # After the last rung keep the attributes: touching them would mark the
