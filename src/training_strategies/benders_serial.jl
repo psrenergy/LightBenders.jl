@@ -111,6 +111,9 @@ function serial_benders_train(;
         if progress.UB[progress.current_iteration] < progress.best_UB
             progress.best_UB = progress.UB[progress.current_iteration]
             best_UB_state = copy(state)
+            if policy_training_options.checkpoint_callback !== nothing
+                policy_training_options.checkpoint_callback(best_UB_state, first_stage_model, progress)
+            end
         end
         if !(policy_training_options.regularization isa NoRegularization)
             # With regularization the trial states are deliberately sub-optimal for
