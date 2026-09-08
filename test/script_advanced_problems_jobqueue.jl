@@ -266,7 +266,14 @@ function test_capacity_expansion()
                 implementation_strategy = LightBenders.SerialTraining(),
                 stopping_rule = [LightBenders.IterationLimit(10)],
                 cut_strategy = LightBenders.CutStrategy.MultiCut,
-                mip_options = LightBenders.MIPOptions(run_mip_after_iteration = 3),
+                mip_options = LightBenders.MIPOptions(;
+                    run_mip_after_iteration = 3,
+                    dynamic_gap = true,
+                    gap_fraction = 0.5,
+                    min_gap = 1e-6,
+                    max_gap = 0.1,
+                    lower_bound_from_bound = true,
+                ),
                 verbose = true,
             ),
         )

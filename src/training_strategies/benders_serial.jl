@@ -55,11 +55,18 @@ function serial_benders_train(;
         t = 1
         add_all_cuts!(first_stage_model, iteration_pool[t], policy_training_options)
         store_retry_data(first_stage_model, policy_training_options)
+        integer_active = model_has_integrality && !relaxed
+        if integer_active && policy_training_options.mip_options.dynamic_gap
+            gap = master_gap_target(progress, policy_training_options.mip_options)
+            set_master_gap!(first_stage_model, gap)
+            policy_training_options.verbose && @info "Master MIP relative gap tolerance for this iteration" gap
+        end
         optimize_with_retry(first_stage_model)
         treat_termination_status(first_stage_model, policy_training_options, t, progress.current_iteration)
         state = get_state(first_stage_model; snap_tolerance = policy_training_options.state_snap_tolerance)
         future_cost = get_future_cost(first_stage_model, policy_training_options)
-        progress.LB[progress.current_iteration] += JuMP.objective_value(first_stage_model)
+        progress.LB[progress.current_iteration] +=
+            master_lower_bound_value(first_stage_model, policy_training_options.mip_options, integer_active)
         first_stage_cost = JuMP.objective_value(first_stage_model) - future_cost
         if policy_training_options.regularization isa LevelSetRegularization &&
            isfinite(progress.best_UB) &&
